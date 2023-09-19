@@ -1,0 +1,14 @@
+mqtt:
+  server-url: tcp://localhost:1883
+  client-id: zephyr
+  topic: application/#
+
+spring:
+  influxdb:
+    url: http://localhost:8086
+    user: zephyr
+    password: zephyr7419
+    org: Musma
+    bucket: modbus
+    measurement: status
+    token: 0FQPbYlJ1rqHKpOyFxEWFn1bJ2VwigmTxJFry25I-zkeCaNIKF0J-xMunZBrHBLTx0H3mlzk09ov93qtOTpCBA==
