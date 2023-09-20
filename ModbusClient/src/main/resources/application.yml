@@ -1,7 +1,32 @@
+modbus:
+  read-requests:
+    - start-address: 0x0006
+      quantity: 0x0008
+    - start-address: 0x0004
+      quantity: 0x0001
+  write-requests:
+    - parameter-count: 1
+      start-address: 0x0004
+      values:
+        - 0x0060
+#    - parameter-count: 4
+#      start-address: 0x0380
+#      values:
+#        - 0x0080
+#        - 0x0000
+#        - 0x0000
+#        - 0x0000
+
 mqtt:
   server-url: tcp://localhost:1883
   client-id: zephyr
   topic: application/#
+
+servers:
+  server-list:
+    - name: Server1
+      host: 172.30.1.233
+      port: 5300
 
 spring:
   influxdb:

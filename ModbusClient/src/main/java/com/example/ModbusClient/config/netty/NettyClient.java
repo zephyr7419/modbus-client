@@ -1,5 +1,7 @@
 package com.example.ModbusClient.config.netty;
 
+import com.example.ModbusClient.config.ServerConfig;
+import com.example.ModbusClient.entity.modbus.ServerInfo;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -18,23 +21,25 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class NettyClient {
 
-    private static final String SERVER_HOST = "172.30.1.233";
-    private static final int SERVER_PORT = 5300;
     private final Bootstrap bootstrap;
     private Channel channel;
+    private final ServerConfig serverConfig;
 
     public void start() {
-        connectToServer();
+        List<ServerInfo> servers = serverConfig.getServerList();
+        for (ServerInfo serverInfo : servers) {
+            connectToServer(serverInfo.getHost(), serverInfo.getPort());
+        }
     }
 
-    private void connectToServer() {
-        ChannelFuture channelFuture = bootstrap.connect(SERVER_HOST, SERVER_PORT);
+    private void connectToServer(String host, int port) {
+        ChannelFuture channelFuture = bootstrap.connect(host, port);
         channelFuture.addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {
                 channel = future.channel();
-                log.info("Connected to server: {}:{}", SERVER_HOST, SERVER_PORT);
+                log.info("Connected to server: {}:{}", host, port);
             } else {
-                log.error("Failed to server: {}:{}", SERVER_HOST, SERVER_PORT);
+                log.error("Failed to server: {}:{}", host, port);
                 channel.closeFuture().addListener((ChannelFutureListener) future1 -> {
                     log.warn("Connection closed. Attempting to reconnect...");
                     attemptReconnect();
@@ -50,7 +55,7 @@ public class NettyClient {
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         executorService.scheduleAtFixedRate(() -> {
             try {
-                connectToServer();
+                start();
             } catch (Exception e) {
                 log.error("Reconnection failed: {}", e.getMessage());
             }

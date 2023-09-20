@@ -1,5 +1,6 @@
 package com.example.ModbusClient.config.netty;
 
+import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,29 +19,20 @@ public class ParseAndResponse {
         byte slaveId = response[0];
         byte funcCode = response[1];
         byte byteCount = response[2];
-        int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
 
         Map<String, Object> fields = new HashMap<>();
-
-        // 응답 데이터를 파싱하여 로그에 출력
+        int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
         while (dataStartIndex + 1 < response.length) {
             byte hi = response[dataStartIndex];
             byte lo = response[dataStartIndex + 1];
             int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
 
-            if (byteCount == 0x04) {
-                String translatedTag = translateToEnglishFrom4Count(dataStartIndex);
-                String formattedValue = formatData(dataStartIndex, value);
-                fields.put(translatedTag, formattedValue);
-                logParsedData1(dataStartIndex, value);
-            } else {
-                String translatedTag = translateToEnglishFromOtherCount(dataStartIndex);
-                String formattedValue = formatData2(dataStartIndex, value);
-                fields.put(translatedTag, formattedValue);
-                logParsedData2(dataStartIndex, value);
-            }
+            String translatedTag = translateToEnglish(dataStartIndex, byteCount);
+            String formattedValue = formatData(dataStartIndex, value, byteCount);
 
-            // 데이터 인덱스를 2바이트씩 증가시킴
+            fields.put(translatedTag, formattedValue);
+            logParsedData(formattedValue);
+
             dataStartIndex += 2;
         }
 
@@ -52,143 +44,221 @@ public class ParseAndResponse {
         fields.put("Byte Count", byteCount);
         fields.put("CRC (Lo)", crcLo);
         fields.put("CRC (Hi)", crcHi);
-        log.info("Slave ID: " + slaveId);
-        log.info("Function Code: " + funcCode);
-        log.info("Byte Count: " + byteCount);
-        log.info("CRC (Lo): " + crcLo);
-        log.info("CRC (Hi): " + crcHi);
 
+        logInfoFields(fields);
         return fields;
+
     }
 
-    private void logParsedData1(int dataStartIndex, int value) {
-        String formattedValue = formatData(dataStartIndex, value);
+
+    public JsonObject mqttMessageToParsing(Map<String, Object> stringObjectMap, String[] statusArray) {
+        JsonObject json = new JsonObject();
+        json.addProperty("HZ_PV", (String) stringObjectMap.get("Target Frequency"));
+        json.addProperty("FWD_RUN_ST", statusArray[3].equals("True"));
+        json.addProperty("REV_RUN_ST", statusArray[2].equals("True"));
+        json.addProperty("STOP_ST", statusArray[4].equals("True"));
+        json.addProperty("TRIP_ST", statusArray[1].equals("True"));
+        json.addProperty("INC_TIME", (String) stringObjectMap.get("Acceleration Time"));
+        json.addProperty("DEC_TIME", (String) stringObjectMap.get("Deceleration Time"));
+        json.addProperty("OUT_A", (String) stringObjectMap.get("Output Current"));
+        json.addProperty("OUT_HZ", (String) stringObjectMap.get("Output Frequency"));
+        json.addProperty("OUT_V", (String) stringObjectMap.get("Output Voltage"));
+        json.addProperty("DC_LINK_V", (String) stringObjectMap.get("DC Link Voltage"));
+        json.addProperty("KW", (String) stringObjectMap.get("Output Kw"));
+        json.addProperty("REMOTE", statusArray[0].equals("HAND") ? 0 : 1);
+        json.addProperty("INV_POWER_ST", (String) stringObjectMap.get("Deceleration Time"));
+
+        return json;
+    }
+
+    private void logParsedData(String formattedValue) {
+
         log.info(formattedValue);
     }
 
-    private void logParsedData2(int dataStartIndex, int value) {
-        String formattedValue = formatData2(dataStartIndex, value);
-        log.info(formattedValue);
-    }
-
-    private String formatData(int dataStartIndex, int value) {
-        String formattedValue = "";
+    private String formatData(int dataStartIndex, int value, byte byteCount) {
         switch (dataStartIndex) {
-            case 3 -> formattedValue = runStatus(value);
-            case 5 -> formattedValue = runAndFrequencyResource(value);
-            default -> formattedValue = Integer.toHexString(value);
+            case 3, 5, 7, 15 -> {
+                if (byteCount != 0x02) {
+                    return String.valueOf((value * 0.1));
+                } else {
+                    return String.valueOf((value * 0.01));
+                }
+            }
+            case 9 -> {
+                if (byteCount != 0x02) {
+                    return String.valueOf((value * 0.01));
+                } else {
+                    return null;
+                }
+            }
+            case 11, 13 -> {
+                if (byteCount != 0x02) {
+                    return String.valueOf(value);
+                } else {
+                    return null;
+                }
+            }
+            case 17 -> {
+                if (byteCount != 0x02) {
+                    return getRunStatusString(value);
+                } else {
+                    return null;
+                }
+            }
+            default -> {
+                return Integer.toHexString(value);
+            }
         }
-        return formattedValue;
     }
 
-    private String formatData2(int dataStartIndex, int value) {
-        String formattedValue = "";
+    private String translateToEnglish(int dataStartIndex, byte byteCount) {
         switch (dataStartIndex) {
-            case 3, 5 -> formattedValue = ((value * 0.1) + "sec");
-            case 7 -> formattedValue = ((value * 0.1) + "A");
-            case 9 -> formattedValue = ((value * 0.01) + "Hz");
-            case 11 -> formattedValue = (value + "V");
-            default -> formattedValue = Integer.toHexString(value);
+            case 3 -> {
+                if (byteCount != 0x02) {
+                    return "Acceleration Time";
+                } else {
+                    return "Target Frequency";
+                }
+            }
+            case 5 -> {
+                if (byteCount != 0x02) {
+                    return "Deceleration Time";
+                } else {
+                    return null;
+                }
+            }
+            case 7 -> {
+                if (byteCount != 0x02) {
+                    return "Output Current";
+                } else {
+                    return null;
+                }
+            }
+            case 9 -> {
+                if (byteCount != 0x02) {
+                    return "Output Frequency";
+                } else {
+                    return null;
+                }
+            }
+            case 11 -> {
+                if (byteCount != 0x02) {
+                    return "Output Voltage";
+                } else {
+                    return null;
+                }
+            }
+            case 13 -> {
+                if (byteCount != 0x02) {
+                    return "DC Link Voltage";
+                } else {
+                    return null;
+                }
+            }
+            case 15 -> {
+                if (byteCount != 0x02) {
+                    return "Output Kw";
+                } else {
+                    return null;
+                }
+            }
+            case 17 -> {
+                if (byteCount != 0x02) {
+                    return "Operating Status";
+                } else {
+                    return null;
+                }
+            }
+            default -> {
+                return "CRC";
+            }
         }
-        return formattedValue;
     }
 
-    private String translateToEnglishFrom4Count(int dataStartIndex) {
-        return switch (dataStartIndex) {
-            case 3 -> "Operating Status";
-            case 5 -> "Operation and Frequency Command Source";
-            default -> "CRC";
-        };
-    }
-
-    private String translateToEnglishFromOtherCount(int dataStartIndex) {
-        return switch (dataStartIndex) {
-            case 3 -> "Acceleration Time";
-            case 5 -> "Deceleration Time";
-            case 7 -> "Output Current";
-            case 9 -> "Output Frequency";
-            case 11 -> "Output Voltage";
-            default -> "CRC";
-        };
-    }
-
-    private String runStatus(int value) {
-        // S/W 버전을 계산하여 반환
-        return getRunStatusString(value);
+    private void logInfoFields(Map<String, Object> fields) {
+        fields.forEach((key, value) -> {
+            System.out.println(key + ": " + value);
+        });
     }
 
     @NotNull
     public String getRunStatusString(int value) {
-        int b15to12 = (value >> 12) & 0xF;
-        int b7to4 = (value >> 4) & 0xF;
-        int b3to0 = value & 0xF;
+        int b15 = ((value >> 15) & 1);
+        boolean b3 = ((value >> 3) & 1) == 1;
+        boolean b2 = ((value >> 2) & 1) == 1;
+        boolean b1 = ((value >> 1) & 1) == 1;
+        boolean b0 = (value & 1) == 1;
+
         String status = "";
 
-        switch (b15to12) {
-            case 0x00 -> status = "정상 상태";
-            case 0x04 -> status = "Warning 발생 상태";
-            case 0x08 -> status = "Fault 발생 상태";
-            default -> status = "Unknown Version";
+        switch (b15) {
+            case 0x0000 -> status += "HAND";
+            case 0x0001 -> status += "AUTO";
         }
 
-        switch (b7to4) {
-            case 0x01 -> status += ", 속도 서치 중";
-            case 0x02 -> status += ", 가속 중";
-            case 0x03 -> status += ", 정속 중";
-            case 0x04 -> status += ", 감속 중";
-            case 0x05 -> status += ", 감속 정지 중";
-            case 0x06 -> status += ", H/W 전류 억제";
-            case 0x07 -> status += ", S/W 전류 억제";
-            case 0x08 -> status += ", 드웰 운전 중";
-            default -> status += ", Unknown Version";
+        if (b3) {
+            status += ",True";
+        } else {
+            status += ",False";
         }
 
-        switch (b3to0) {
-            case 0x00 -> status += ", 정지";
-            case 0x01 -> status += ", 정방향 운전 중";
-            case 0x02 -> status += ", 역방향 운전 중";
-            case 0x03 -> status += ", DC 운전 중";
-            default -> status += ", Unknown Version";
+        if (b2) {
+            status += ",True";
+        } else {
+            status += ",False";
+        }
+
+        if (b1) {
+            status += ",True";
+        } else {
+            status += ",False";
+        }
+
+        if (b0) {
+            status += ",True";
+        } else {
+            status += ",False";
         }
 
         return status;
     }
 
-    private String runAndFrequencyResource(int value) {
-        return getRunAndFrequencyString(value);
-    }
-
-    @NotNull
-    public String getRunAndFrequencyString(int value) {
-        int b15to8 = (value >> 8) & 0xF;
-        int b7to0 = value >> 4;
-        String resource = "";
-
-        switch (b15to8) {
-            case 0x00 -> resource = "키패드";
-            case 0x01 -> resource = "통신 옵션";
-            case 0x03 -> resource = "내장형 485";
-            case 0x04 -> resource = "단자대";
-            default -> resource = "Unknown Version";
-        }
-
-        switch (b7to0) {
-            case 0x00 -> resource += ", 키패드 속도";
-            case 0x02, 0x04, 0x03 -> resource += ", Up/Down 운전 속도";
-            case 0x05 -> resource += ", V1";
-            case 0x07 -> resource += ", V2";
-            case 0x08 -> resource += ", I2";
-            case 0x09 -> resource += ", Pulse";
-            case 0x10 -> resource += ", 내장형 485";
-            case 0x11 -> resource += ", 통신 옵션";
-            case 0x13 -> resource += ", Jog";
-            case 0x14 -> resource += ", PID";
-            case 0x25, 0x26, 0x27, 0x28, 0x29, 0x30, 0x31 -> resource += ", 다단속 주파수";
-            default -> resource += ", Unknown Version";
-        }
-
-        return resource;
-    }
+//    private String runAndFrequencyResource(int value) {
+//        return getRunAndFrequencyString(value);
+//    }
+//
+//    @NotNull
+//    public String getRunAndFrequencyString(int value) {
+//        int b15to8 = (value >> 8) & 0xF;
+//        int b7to0 = value >> 4;
+//        String resource = "";
+//
+//        switch (b15to8) {
+//            case 0x00 -> resource = "키패드";
+//            case 0x01 -> resource = "통신 옵션";
+//            case 0x03 -> resource = "내장형 485";
+//            case 0x04 -> resource = "단자대";
+//            default -> resource = "Unknown Version";
+//        }
+//
+//        switch (b7to0) {
+//            case 0x00 -> resource += ", 키패드 속도";
+//            case 0x02, 0x04, 0x03 -> resource += ", Up/Down 운전 속도";
+//            case 0x05 -> resource += ", V1";
+//            case 0x07 -> resource += ", V2";
+//            case 0x08 -> resource += ", I2";
+//            case 0x09 -> resource += ", Pulse";
+//            case 0x10 -> resource += ", 내장형 485";
+//            case 0x11 -> resource += ", 통신 옵션";
+//            case 0x13 -> resource += ", Jog";
+//            case 0x14 -> resource += ", PID";
+//            case 0x25, 0x26, 0x27, 0x28, 0x29, 0x30, 0x31 -> resource += ", 다단속 주파수";
+//            default -> resource += ", Unknown Version";
+//        }
+//
+//        return resource;
+//    }
 
     /**
      * log 확인 시 16진수 표현

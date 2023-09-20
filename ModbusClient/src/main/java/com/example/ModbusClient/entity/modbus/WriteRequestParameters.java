@@ -1,12 +1,10 @@
-package com.example.ModbusClient.util.modbus;
+package com.example.ModbusClient.entity.modbus;
 
-import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 
 import java.util.List;
 
-@Getter
-@Builder
+@Data
 public class WriteRequestParameters {
 
     private int parameterCount;

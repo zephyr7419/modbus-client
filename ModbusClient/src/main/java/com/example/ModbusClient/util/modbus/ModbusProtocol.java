@@ -1,5 +1,7 @@
 package com.example.ModbusClient.util.modbus;
 
+import com.example.ModbusClient.entity.modbus.ReadRequestParameters;
+import com.example.ModbusClient.entity.modbus.WriteRequestParameters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -1,6 +1,5 @@
 package com.example.ModbusClient.config.mqtt;
 
-import com.example.ModbusClient.entity.DeviceResponseData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.MqttClient;
@@ -23,8 +22,6 @@ public class MqttConfig {
 
     @Value("${mqtt.topic}")
     private String topic;
-
-    private final DeviceResponseData deviceResponseData;
 
     @Bean
     public MqttClient mqttClient() throws Exception {

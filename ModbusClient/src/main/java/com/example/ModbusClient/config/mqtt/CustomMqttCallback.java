@@ -11,6 +11,7 @@ import org.eclipse.paho.mqttv5.common.MqttException;
 import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 @Slf4j
@@ -38,9 +39,13 @@ public class CustomMqttCallback implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
-        byte[] decode = Base64.getDecoder().decode(message.getPayload());
-        String jsonData = new String(decode);
-        log.info("message: {}", jsonData);
+        // MQTT 메시지 수신 시의 처리
+        byte[] payload = message.getPayload();
+        // Base64 디코딩
+        byte[] decodedData = Base64.getDecoder().decode(payload);
+        String decodedMessage = new String(decodedData, StandardCharsets.UTF_8);
+        // 디코딩된 데이터를 사용하여 원하는 작업 수행
+        log.info("Received message: {}", decodedMessage);
 //        upEventService.parsing(message);
     }
 
