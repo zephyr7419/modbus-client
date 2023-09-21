@@ -1,11 +1,13 @@
 package com.example.ModbusClient.service;
 
+import com.example.ModbusClient.config.netty.ParseAndResponse;
 import com.example.ModbusClient.entity.modbus.ModbusRequestProperties;
 import com.example.ModbusClient.entity.modbus.ReadRequestParameters;
 import com.example.ModbusClient.entity.modbus.WriteRequestParameters;
 import com.example.ModbusClient.util.modbus.ModbusProtocol;
 import com.example.ModbusClient.util.modbus.ModbusTCP6266;
 import com.ghgande.j2mod.modbus.util.BitVector;
+import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -16,7 +18,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayToHexString;
@@ -63,6 +67,19 @@ public class ModbusService {
         }
     }
 
+    public void combinedData(Map<ChannelHandlerContext, byte[]> responseData) {
+        for (Map.Entry<ChannelHandlerContext, byte[]> entry : responseData.entrySet()) {
+            ChannelHandlerContext ctx = entry.getKey();
+            byte[] response = entry.getValue();
+            log.info("response: {}", Arrays.toString(response));
+            ParseAndResponse parseAndResponse = new ParseAndResponse();
+            Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(response);
+            String statusString = (String) stringObjectMap.get("Operating Status");
+            String[] statusArray = statusString.split(",");
+            JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(stringObjectMap, statusArray);
+        }
+    }
+
     /**
      * 연결된 서버에 Modbus protocol 을 이용해 스케쥴을 통해 해당 시간마다 요청을 보낸다.
      */
@@ -97,8 +114,6 @@ public class ModbusService {
     }
 
     private void requestModbus() {
-
-
         for (ChannelHandlerContext ctx : serversOrderMap.keySet()) {
 
             for (ReadRequestParameters readRequestParameters : modbusRequestProperties.getReadRequests()) {
@@ -108,16 +123,6 @@ public class ModbusService {
             }
         }
 
-        // mqtt 로 제어 통신이 오면 실행하는 제어
-        for (ChannelHandlerContext ctx : serversOrderMap.keySet()) {
-
-            for (WriteRequestParameters writeRequestParameters : modbusRequestProperties.getWriteRequests()) {
-                ByteBuf request = Unpooled.buffer();
-                byte[] writeRequest = modbusProtocol.getWriteRequest.apply(writeRequestParameters);
-                writeMessaging(ctx, request, writeRequest);
-            }
-
-        }
     }
 
     /**

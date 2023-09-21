@@ -9,6 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayToHexString;
 
 
@@ -18,6 +21,7 @@ import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayTo
 public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ModbusService modbusService;
+    private Map<ChannelHandlerContext, byte[]> responseData = new ConcurrentHashMap<>();
 
     public HexProtocolClientHandler(ModbusService modbusService) {
         this.modbusService = modbusService;
@@ -35,10 +39,9 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) throws Exception {
-        ByteBuf buf = (ByteBuf) msg;
-        byte[] response = new byte[buf.readableBytes()];
-        buf.readBytes(response);
-
+        byte[] response = (byte[]) msg;
+        responseData.put(ctx, response);
+        modbusService.combinedData(responseData);
 
         log.info("response: {}", byteArrayToHexString(response));
     }

@@ -41,12 +41,7 @@ public class ModbusRTUDecoder extends ByteToMessageDecoder {
                 ByteBuf response = in.readBytes(byteCount + 5);
                 byte[] responseData = new byte[response.readableBytes()];
                 response.readBytes(responseData);
-                String serverIpAddress = ctx.channel().remoteAddress().toString();
-                log.info("ipAddress: {}", serverIpAddress);
-                log.info("responseData: {}", Arrays.toString(responseData));
-                Map<String, Object> stringObjectMap = getStringObjectMap(responseData);
-
-                influxManager.saveDataToInfluxDB(stringObjectMap);
+                out.add(responseData);
 
                 response.release();
             }
