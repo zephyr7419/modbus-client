@@ -1,9 +1,9 @@
 modbus:
   read-requests:
     - start-address: 0x0006
-      quantity: 0x0008
+      quantity: 0x008
     - start-address: 0x0004
-      quantity: 0x0001
+      quantity: 0x0002
   write-requests:
     - parameter-count: 1
       start-address: 0x0004

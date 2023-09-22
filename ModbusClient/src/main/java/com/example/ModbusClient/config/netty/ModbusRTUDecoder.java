@@ -41,6 +41,7 @@ public class ModbusRTUDecoder extends ByteToMessageDecoder {
                 ByteBuf response = in.readBytes(byteCount + 5);
                 byte[] responseData = new byte[response.readableBytes()];
                 response.readBytes(responseData);
+                log.info("responseData: {}", Arrays.toString(responseData));
                 out.add(responseData);
 
                 response.release();

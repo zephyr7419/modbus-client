@@ -2,6 +2,7 @@ package com.example.ModbusClient.config.netty;
 
 import com.example.ModbusClient.config.ServerConfig;
 import com.example.ModbusClient.entity.modbus.ServerInfo;
+import com.example.ModbusClient.service.ModbusService;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -24,11 +25,13 @@ public class NettyClient {
     private final Bootstrap bootstrap;
     private Channel channel;
     private final ServerConfig serverConfig;
+    private final ModbusService modbusService;
 
     public void start() {
         List<ServerInfo> servers = serverConfig.getServerList();
         for (ServerInfo serverInfo : servers) {
             connectToServer(serverInfo.getHost(), serverInfo.getPort());
+            modbusService.connectAndRequest();
         }
     }
 
@@ -37,7 +40,10 @@ public class NettyClient {
         channelFuture.addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {
                 channel = future.channel();
-                log.info("Connected to server: {}:{}", host, port);
+                if (channel.isActive()) {
+                    log.info("Connected to server: {}:{}", host, port);
+                }
+                modbusService.addServer(channel);
             } else {
                 log.error("Failed to server: {}:{}", host, port);
                 channel.closeFuture().addListener((ChannelFutureListener) future1 -> {

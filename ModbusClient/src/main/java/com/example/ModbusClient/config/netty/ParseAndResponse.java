@@ -47,8 +47,8 @@ public class ParseAndResponse {
                 byte lo = response[dataStartIndex + 1];
                 int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
 
-                String translatedTag = translateToEnglish8(dataStartIndex);
-                String formattedValue = formatData8(dataStartIndex, value);
+                String translatedTag = translateToEnglish10(dataStartIndex);
+                String formattedValue = formatData10(dataStartIndex, value);
 
                 fields.put(translatedTag, formattedValue);
                 logParsedData(formattedValue);
@@ -85,24 +85,20 @@ public class ParseAndResponse {
 
     public JsonObject mqttMessageToParsing(Map<String, Object> stringObjectMap, String[] statusArray) {
         JsonObject json = new JsonObject();
-        if (stringObjectMap.get("Target Frequency") == null) {
-            json.addProperty("FWD_RUN_ST", statusArray[3].equals("True"));
-            json.addProperty("REV_RUN_ST", statusArray[2].equals("True"));
-            json.addProperty("STOP_ST", statusArray[4].equals("True"));
-            json.addProperty("TRIP_ST", statusArray[1].equals("True"));
-            json.addProperty("INC_TIME", (String) stringObjectMap.get("Acceleration Time"));
-            json.addProperty("DEC_TIME", (String) stringObjectMap.get("Deceleration Time"));
-            json.addProperty("OUT_A", (String) stringObjectMap.get("Output Current"));
-            json.addProperty("OUT_HZ", (String) stringObjectMap.get("Output Frequency"));
-            json.addProperty("OUT_V", (String) stringObjectMap.get("Output Voltage"));
-            json.addProperty("DC_LINK_V", (String) stringObjectMap.get("DC Link Voltage"));
-            json.addProperty("KW", (String) stringObjectMap.get("Output Kw"));
-            json.addProperty("REMOTE", statusArray[0].equals("HAND") ? 0 : 1);
-            json.addProperty("INV_POWER_ST", (String) stringObjectMap.get("Deceleration Time"));
-        } else {
-            json.addProperty("HZ_PV", (String) stringObjectMap.get("Target Frequency"));
-        }
-
+        json.addProperty("HZ_PV", (String) stringObjectMap.get("Target Frequency"));
+        json.addProperty("FWD_RUN_ST", statusArray[3].equals("True"));
+        json.addProperty("REV_RUN_ST", statusArray[2].equals("True"));
+        json.addProperty("STOP_ST", statusArray[4].equals("True"));
+        json.addProperty("TRIP_ST", statusArray[1].equals("True"));
+        json.addProperty("INC_TIME", (String) stringObjectMap.get("Acceleration Time"));
+        json.addProperty("DEC_TIME", (String) stringObjectMap.get("Deceleration Time"));
+        json.addProperty("OUT_A", (String) stringObjectMap.get("Output Current"));
+        json.addProperty("OUT_HZ", (String) stringObjectMap.get("Output Frequency"));
+        json.addProperty("OUT_V", (String) stringObjectMap.get("Output Voltage"));
+        json.addProperty("DC_LINK_V", (String) stringObjectMap.get("DC Link Voltage"));
+        json.addProperty("KW", (String) stringObjectMap.get("Output Kw"));
+        json.addProperty("REMOTE", statusArray[0].equals("HAND") ? 0 : 1);
+        json.addProperty("INV_POWER_ST", (String) stringObjectMap.get("Deceleration Time"));
         return json;
     }
 
@@ -122,18 +118,18 @@ public class ParseAndResponse {
         }
     }
 
-    private String formatData8(int dataStartIndex, int value) {
+    private String formatData10(int dataStartIndex, int value) {
         switch (dataStartIndex) {
-            case 3, 5, 7, 15 -> {
+            case 7, 9, 11, 19 -> {
                 return String.valueOf((value * 0.1));
             }
-            case 9 -> {
+            case 3, 13 -> {
                 return String.valueOf((value * 0.01));
             }
-            case 11, 13 -> {
+            case 15, 17 -> {
                 return String.valueOf(value);
             }
-            case 17 -> {
+            case 21 -> {
                 return getRunStatusString(value);
             }
             default -> {
@@ -177,6 +173,41 @@ public class ParseAndResponse {
                 return "Output Kw";
             }
             case 17 -> {
+                return "Operating Status";
+            }
+            default -> {
+                return "CRC";
+            }
+        }
+    }
+
+    private String translateToEnglish10(int dataStartIndex) {
+        switch (dataStartIndex) {
+            case 3-> {
+                return "Target Frequency";
+            }
+            case 7 -> {
+                return "Acceleration Time";
+            }
+            case 9 -> {
+                return "Deceleration Time";
+            }
+            case 11 -> {
+                return "Output Current";
+            }
+            case 13 -> {
+                return "Output Frequency";
+            }
+            case 15 -> {
+                return "Output Voltage";
+            }
+            case 17 -> {
+                return "DC Link Voltage";
+            }
+            case 19 -> {
+                return "Output Kw";
+            }
+            case 21 -> {
                 return "Operating Status";
             }
             default -> {
