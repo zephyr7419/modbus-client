@@ -31,7 +31,6 @@ public class NettyClient {
         List<ServerInfo> servers = serverConfig.getServerList();
         for (ServerInfo serverInfo : servers) {
             connectToServer(serverInfo.getHost(), serverInfo.getPort());
-            modbusService.connectAndRequest();
         }
     }
 
@@ -73,6 +72,7 @@ public class NettyClient {
         if (channel != null) {
             channel.close();
             channel.parent().closeFuture();
+            modbusService.removeServer(channel);
         }
     }
 }

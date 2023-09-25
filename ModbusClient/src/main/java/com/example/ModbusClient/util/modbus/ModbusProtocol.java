@@ -44,7 +44,7 @@ public class ModbusProtocol {
         buffer.put((byte) 0x10);
         buffer.put((byte) ((writeRequestParameters.getStartAddress() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getStartAddress()  & 0xFF));
-        buffer.put((byte) ((writeRequestParameters.getParameterCount() >>8) & 0xFF));
+        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
         buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));
 

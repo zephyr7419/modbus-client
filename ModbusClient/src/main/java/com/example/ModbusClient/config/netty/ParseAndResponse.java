@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,7 +21,7 @@ public class ParseAndResponse {
         byte funcCode = response[1];
         byte byteCount = response[2];
 
-        if (byteCount == 0x02) {
+        if (byteCount == 0x04) {
             Map<String, Object> fields2 = new HashMap<>();
             int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
             while (dataStartIndex + 1 < response.length) {
@@ -39,7 +40,7 @@ public class ParseAndResponse {
 
             // 나머지 파라미터와 CRC 출력
             return getStringObjectMap(response, slaveId, funcCode, byteCount, fields2);
-        } else {
+        } else if (byteCount == 16) {
             Map<String, Object> fields = new HashMap<>();
             int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
             while (dataStartIndex + 1 < response.length) {
@@ -47,8 +48,8 @@ public class ParseAndResponse {
                 byte lo = response[dataStartIndex + 1];
                 int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
 
-                String translatedTag = translateToEnglish10(dataStartIndex);
-                String formattedValue = formatData10(dataStartIndex, value);
+                String translatedTag = translateToEnglish8(dataStartIndex);
+                String formattedValue = formatData8(dataStartIndex, value);
 
                 fields.put(translatedTag, formattedValue);
                 logParsedData(formattedValue);
@@ -59,8 +60,51 @@ public class ParseAndResponse {
             // 나머지 파라미터와 CRC 출력
             return getStringObjectMap(response, slaveId, funcCode, byteCount, fields);
 
-        }
+//        } else if (funcCode == 10){
+//            Map<String, Object> writeValueFields = new HashMap<>();
+//
+//            byte addrHi = (byte) ((response[2] >> 8) & 0xFF);
+//            byte addrLo = (byte) (response[2] & 0xFF);
+//            byte NoHi = (byte) ((response[3] >> 8) & 0xFF);
+//            byte NoLo = (byte) (response[3] & 0xFF);
+//            byte byteCounts = response[4];
+//            byte crcLo = (byte) (response[4] & 0xFF);
+//            byte crcHi = (byte) ((response[4] >> 8) & 0xFF);
+//
+//            writeValueFields.put("slaveId", slaveId);
+//            writeValueFields.put("funcCode", funcCode);
+//            writeValueFields.put("NoHi", NoHi);
+//            writeValueFields.put("NoLo", NoLo);
+//            writeValueFields.put("byteCount", byteCounts )
+//            writeValueFields.put("valueHi", valueHi);
+//            writeValueFields.put("valueLo", valueLo);
+//            writeValueFields.put("crcLo", crcLo);
+//            writeValueFields.put("crcHi", crcHi);
+//
+//            return writeValueFields;
+//        } else {
+        } else {
+            log.info("write data: {}", Arrays.toString(response));
+            Map<String, Object> exceptionResponse = new HashMap<>();
 
+            byte exceptCode = response[3];
+
+            switch (exceptCode) {
+                case 0x01 ->
+                    log.error("ILLEGAL FUNCTION");
+                case 0x02 ->
+                    log.error("ILLEGAL DATA ADDRESS");
+                case 0x03 ->
+                    log.error("ILLEGAL DATA VALUE");
+                case 0x06 ->
+                    log.error("SLAVE DEVICE BUSY");
+                case 0x14 ->
+                    log.error("Write-Protection");
+            }
+
+            exceptionResponse.put("exceptCode", exceptCode);
+            return exceptionResponse;
+        }
     }
 
     @NotNull
@@ -85,7 +129,6 @@ public class ParseAndResponse {
 
     public JsonObject mqttMessageToParsing(Map<String, Object> stringObjectMap, String[] statusArray) {
         JsonObject json = new JsonObject();
-        json.addProperty("HZ_PV", (String) stringObjectMap.get("Target Frequency"));
         json.addProperty("FWD_RUN_ST", statusArray[3].equals("True"));
         json.addProperty("REV_RUN_ST", statusArray[2].equals("True"));
         json.addProperty("STOP_ST", statusArray[4].equals("True"));
@@ -118,18 +161,18 @@ public class ParseAndResponse {
         }
     }
 
-    private String formatData10(int dataStartIndex, int value) {
+    private String formatData8(int dataStartIndex, int value) {
         switch (dataStartIndex) {
-            case 7, 9, 11, 19 -> {
+            case 3, 5, 7, 15 -> {
                 return String.valueOf((value * 0.1));
             }
-            case 3, 13 -> {
+            case 9 -> {
                 return String.valueOf((value * 0.01));
             }
-            case 15, 17 -> {
+            case 11, 13 -> {
                 return String.valueOf(value);
             }
-            case 21 -> {
+            case 17 -> {
                 return getRunStatusString(value);
             }
             default -> {

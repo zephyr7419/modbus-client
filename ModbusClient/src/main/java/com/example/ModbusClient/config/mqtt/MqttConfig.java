@@ -1,5 +1,7 @@
 package com.example.ModbusClient.config.mqtt;
 
+import com.example.ModbusClient.service.ModbusService;
+import com.example.ModbusClient.util.mqtt.MqttMessageParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.MqttClient;
@@ -23,6 +25,8 @@ public class MqttConfig {
     @Value("${mqtt.topic}")
     private String topic;
 
+    private final ModbusService modbusService;
+
     @Bean
     public MqttClient mqttClient() throws Exception {
         MqttConnectionOptions options = new MqttConnectionOptions();
@@ -36,8 +40,9 @@ public class MqttConfig {
         client.connect(options);
         client.subscribe("application/#", 0);
 
-        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic);
+        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, modbusService);
         client.setCallback(customMqttCallback);
+
         if (client.isConnected()) {
             log.info("Connected?");
         }

@@ -8,10 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 
 @Slf4j
 @Component
@@ -19,9 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ModbusService modbusService;
-    private final Map<ChannelHandlerContext, List<Map<String, Object>>> parsedResponsesMap = new ConcurrentHashMap<>();
-    private Map<String, Object> stringObjectMap = new ConcurrentHashMap<>();
-    private Map<String, Object> combinedMap = new ConcurrentHashMap<>();
 
     public HexProtocolClientHandler(ModbusService modbusService) {
         this.modbusService = modbusService;
@@ -29,17 +22,29 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(@NotNull ChannelHandlerContext ctx) throws Exception {
+        modbusService.heartbeatRequest();
     }
 
     @Override
     public void channelInactive(@NotNull ChannelHandlerContext ctx) throws Exception {
-        modbusService.removeServer(ctx);
     }
 
     @Override
     public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) throws Exception {
         byte[] response = (byte[]) msg;
 
+        if (response[2] == 16) {
+            modbusService.onFirstResponseReceived(response, ctx);
+
+        }else if (response[2] == 4) {
+            modbusService.onSecondResponseReceived(response, ctx);
+
+        }else if (response[1] == 16){
+            modbusService.writeResponseParsing(response);
+        } else {
+            log.info("알 수 없는 정보이다.");
+
+        }
 
     }
 

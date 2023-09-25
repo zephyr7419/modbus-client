@@ -1,9 +1,9 @@
 package com.example.ModbusClient.entity.modbus;
 
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 
-@Getter
+@Data
 @Builder
 public class ServerInfo {
     private String name;

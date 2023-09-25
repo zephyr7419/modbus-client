@@ -1,6 +1,9 @@
 package com.example.ModbusClient.config.mqtt;
 
 
+import com.example.ModbusClient.dto.DataModel;
+import com.example.ModbusClient.service.ModbusService;
+import com.example.ModbusClient.util.mqtt.MqttMessageParser;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.IMqttToken;
@@ -11,9 +14,6 @@ import org.eclipse.paho.mqttv5.common.MqttException;
 import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
 @Slf4j
 @AllArgsConstructor
 public class CustomMqttCallback implements MqttCallback {
@@ -21,6 +21,7 @@ public class CustomMqttCallback implements MqttCallback {
 //    private UpEventService upEventService;
     private MqttClient client;
     private String topic;
+    private final ModbusService modbusService;
 
     @Override
     public void disconnected(MqttDisconnectResponse disconnectResponse) {
@@ -39,14 +40,11 @@ public class CustomMqttCallback implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
-        // MQTT 메시지 수신 시의 처리
-        byte[] payload = message.getPayload();
-        // Base64 디코딩
-        byte[] decodedData = Base64.getDecoder().decode(payload);
-        String decodedMessage = new String(decodedData, StandardCharsets.UTF_8);
-        // 디코딩된 데이터를 사용하여 원하는 작업 수행
-        log.info("Received message: {}", decodedMessage);
-//        upEventService.parsing(message);
+
+        MqttMessageParser messageParser = new MqttMessageParser();
+        DataModel parse = messageParser.parse(message);
+
+        modbusService.writeRequest(parse);
     }
 
     @Override

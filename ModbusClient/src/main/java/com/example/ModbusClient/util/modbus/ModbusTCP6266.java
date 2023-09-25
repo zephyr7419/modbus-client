@@ -32,4 +32,14 @@ public class ModbusTCP6266 {
             return null;
         }
     }
+
+    public boolean writeCoilValues() {
+        try {
+            // 쓰기의 경우 DO 는 0/ 1/ 2/ 3 각 순서대로 주소값은 00017 ~ 00020 까지이다.
+            return master.writeCoil(0x00007, true);
+        } catch (ModbusException e) {
+            log.error("Failed to write coil values: {}", e.getMessage());
+        }
+        return false;
+    }
 }
