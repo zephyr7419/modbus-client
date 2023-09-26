@@ -10,4 +10,7 @@ public class Data {
 
     @SerializedName("FAN_ON")
     private int fanOn;
+
+    @SerializedName("REMOTE")
+    private boolean remote;
 }

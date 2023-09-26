@@ -1,7 +1,7 @@
 package com.example.ModbusClient.config.mqtt;
 
-import com.example.ModbusClient.service.ModbusService;
-import com.example.ModbusClient.util.mqtt.MqttMessageParser;
+import com.example.ModbusClient.config.netty.TestHexProtocolClientHandler;
+import com.example.ModbusClient.service.ModbusServiceTest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.MqttClient;
@@ -22,10 +22,11 @@ public class MqttConfig {
     @Value("${mqtt.client-id}")
     private String clientId;
 
-    @Value("${mqtt.topic}")
-    private String topic;
+    @Value("${mqtt.application-id}")
+    private String applicationId;
 
-    private final ModbusService modbusService;
+    private final ModbusServiceTest modbusService;
+    private final TestHexProtocolClientHandler testHexProtocolClientHandler;
 
     @Bean
     public MqttClient mqttClient() throws Exception {
@@ -36,12 +37,14 @@ public class MqttConfig {
         options.setAutomaticReconnect(true);
 
         MqttClient client = new MqttClient(serverUrl, clientId);
+        String topic = "application/" + applicationId + "/device/+/event/up";
 
         client.connect(options);
-        client.subscribe("application/#", 0);
+        client.subscribe(topic, 0);
 
-        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, modbusService);
+        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, modbusService, testHexProtocolClientHandler);
         client.setCallback(customMqttCallback);
+        client.setTimeToWait(10000);
 
         if (client.isConnected()) {
             log.info("Connected?");

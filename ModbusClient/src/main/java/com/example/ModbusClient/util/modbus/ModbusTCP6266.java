@@ -24,7 +24,7 @@ public class ModbusTCP6266 {
         }
     }
 
-    public BitVector readCoilValues() {
+    public BitVector readDiCoilValues() {
         try {
             return master.readCoils(0x00000, 4);
         } catch (ModbusException e) {
@@ -33,13 +33,21 @@ public class ModbusTCP6266 {
         }
     }
 
-    public boolean writeCoilValues() {
+    public BitVector readDoCoilValues() {
         try {
-            // 쓰기의 경우 DO 는 0/ 1/ 2/ 3 각 순서대로 주소값은 00017 ~ 00020 까지이다.
-            return master.writeCoil(0x00007, true);
+            return master.readCoils(0x00010, 4);
+        } catch (ModbusException e) {
+            log.error("Failed to read coil values: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public void writeCoilValues(boolean flag) {
+        try {
+            // 쓰기의 경우 DO 는 0/ 1/ 2/ 3 각 순서대로 주소값은 00010 ~ 00013 까지이다.
+             master.writeCoil(0x00010, flag);
         } catch (ModbusException e) {
             log.error("Failed to write coil values: {}", e.getMessage());
         }
-        return false;
     }
 }

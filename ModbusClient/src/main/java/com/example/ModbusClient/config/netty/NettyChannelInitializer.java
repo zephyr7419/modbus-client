@@ -12,8 +12,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    private final HexProtocolClientHandler handler;
+//    private final HexProtocolClientHandler handler;
     private final InfluxManager influxManager;
+    private final TestHexProtocolClientHandler handler;
 
     @Override
     protected void initChannel(@NotNull SocketChannel ch) throws Exception {

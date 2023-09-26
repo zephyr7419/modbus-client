@@ -19,7 +19,7 @@ modbus:
 mqtt:
   server-url: tcp://localhost:1883
   client-id: zephyr
-  topic: application/#
+  application-id: 4
 
 servers:
   server-list:

@@ -1,8 +1,9 @@
 package com.example.ModbusClient.config.mqtt;
 
 
+import com.example.ModbusClient.config.netty.TestHexProtocolClientHandler;
 import com.example.ModbusClient.dto.DataModel;
-import com.example.ModbusClient.service.ModbusService;
+import com.example.ModbusClient.service.ModbusServiceTest;
 import com.example.ModbusClient.util.mqtt.MqttMessageParser;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,8 +22,8 @@ public class CustomMqttCallback implements MqttCallback {
 //    private UpEventService upEventService;
     private MqttClient client;
     private String topic;
-    private final ModbusService modbusService;
-
+    private final ModbusServiceTest modbusService;
+    private final TestHexProtocolClientHandler testHexProtocolClientHandler;
     @Override
     public void disconnected(MqttDisconnectResponse disconnectResponse) {
         log.error("Mqtt Broker is disconnected: {}", disconnectResponse.getException().getMessage());
@@ -44,7 +45,9 @@ public class CustomMqttCallback implements MqttCallback {
         MqttMessageParser messageParser = new MqttMessageParser();
         DataModel parse = messageParser.parse(message);
 
-        modbusService.writeRequest(parse);
+        testHexProtocolClientHandler.getPayload(parse);
+//        modbusService.writeRequest(parse);
+
     }
 
     @Override

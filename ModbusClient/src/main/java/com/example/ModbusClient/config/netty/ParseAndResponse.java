@@ -21,25 +21,15 @@ public class ParseAndResponse {
         byte funcCode = response[1];
         byte byteCount = response[2];
 
-        if (byteCount == 0x04) {
-            Map<String, Object> fields2 = new HashMap<>();
-            int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
-            while (dataStartIndex + 1 < response.length) {
-                byte hi = response[dataStartIndex];
-                byte lo = response[dataStartIndex + 1];
-                int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
+        if (funcCode == 16) {
+            Map<String, Object> fields = new HashMap<>();
+            fields.put("slaveId", slaveId);
+            fields.put("funcCode", funcCode);
+            fields.put("startAddr", response[2]);
+            fields.put("NoOfReg", response[3]);
 
-                String translatedTag = translateToEnglish2(dataStartIndex);
-                String formattedValue = formatData2(dataStartIndex, value);
+            return fields;
 
-                fields2.put(translatedTag, formattedValue);
-                logParsedData(formattedValue);
-
-                dataStartIndex += 2;
-            }
-
-            // 나머지 파라미터와 CRC 출력
-            return getStringObjectMap(response, slaveId, funcCode, byteCount, fields2);
         } else if (byteCount == 16) {
             Map<String, Object> fields = new HashMap<>();
             int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
@@ -60,29 +50,27 @@ public class ParseAndResponse {
             // 나머지 파라미터와 CRC 출력
             return getStringObjectMap(response, slaveId, funcCode, byteCount, fields);
 
-//        } else if (funcCode == 10){
-//            Map<String, Object> writeValueFields = new HashMap<>();
-//
-//            byte addrHi = (byte) ((response[2] >> 8) & 0xFF);
-//            byte addrLo = (byte) (response[2] & 0xFF);
-//            byte NoHi = (byte) ((response[3] >> 8) & 0xFF);
-//            byte NoLo = (byte) (response[3] & 0xFF);
-//            byte byteCounts = response[4];
-//            byte crcLo = (byte) (response[4] & 0xFF);
-//            byte crcHi = (byte) ((response[4] >> 8) & 0xFF);
-//
-//            writeValueFields.put("slaveId", slaveId);
-//            writeValueFields.put("funcCode", funcCode);
-//            writeValueFields.put("NoHi", NoHi);
-//            writeValueFields.put("NoLo", NoLo);
-//            writeValueFields.put("byteCount", byteCounts )
-//            writeValueFields.put("valueHi", valueHi);
-//            writeValueFields.put("valueLo", valueLo);
-//            writeValueFields.put("crcLo", crcLo);
-//            writeValueFields.put("crcHi", crcHi);
-//
-//            return writeValueFields;
-//        } else {
+        } else if (byteCount == 0x04){
+
+            Map<String, Object> fields2 = new HashMap<>();
+            int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
+            while (dataStartIndex + 1 < response.length) {
+                byte hi = response[dataStartIndex];
+                byte lo = response[dataStartIndex + 1];
+                int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
+
+                String translatedTag = translateToEnglish2(dataStartIndex);
+                String formattedValue = formatData2(dataStartIndex, value);
+
+                fields2.put(translatedTag, formattedValue);
+                logParsedData(formattedValue);
+
+                dataStartIndex += 2;
+            }
+
+            // 나머지 파라미터와 CRC 출력
+            return getStringObjectMap(response, slaveId, funcCode, byteCount, fields2);
+
         } else {
             log.info("write data: {}", Arrays.toString(response));
             Map<String, Object> exceptionResponse = new HashMap<>();
