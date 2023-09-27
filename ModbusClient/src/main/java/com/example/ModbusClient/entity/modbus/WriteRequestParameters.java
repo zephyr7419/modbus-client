@@ -10,5 +10,5 @@ import java.util.List;
 public class WriteRequestParameters {
     private int parameterCount;
     private int startAddress;
-    private List<Integer> values;
+    private int value;
 }

@@ -5,8 +5,10 @@ modbus:
   read-requests:
     - start-address: 0x0006
       quantity: 0x008
-    - start-address: 0x0004
+    - start-address: 0x0380
       quantity: 0x0002
+    - start-address: 0x000D
+      quantity: 0x0004
 
 #    - parameter-count: 4
 #      start-address: 0x0380

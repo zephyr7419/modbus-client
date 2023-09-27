@@ -42,10 +42,19 @@ public class ModbusTCP6266 {
         }
     }
 
-    public void writeCoilValues(boolean flag) {
+    public void writeCoilFanOn(int value) {
+        try {
+            master.writeCoil(0x00010, value == 1);
+            // 쓰기의 경우 DO 는 0/ 1/ 2/ 3 각 순서대로 주소값은 00010 ~ 00013 까지이다.
+        } catch (ModbusException e) {
+            log.error("Failed to write coil values: {}", e.getMessage());
+        }
+    }
+
+    public void writeCoilRemote(boolean flag) {
         try {
             // 쓰기의 경우 DO 는 0/ 1/ 2/ 3 각 순서대로 주소값은 00010 ~ 00013 까지이다.
-             master.writeCoil(0x00010, flag);
+            master.writeCoil(0x00011, flag);
         } catch (ModbusException e) {
             log.error("Failed to write coil values: {}", e.getMessage());
         }

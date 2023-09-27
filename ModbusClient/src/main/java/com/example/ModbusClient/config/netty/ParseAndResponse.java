@@ -23,7 +23,7 @@ public class ParseAndResponse {
 
         if (funcCode == 16) {
             Map<String, Object> fields = new HashMap<>();
-            fields.put("slaveId", slaveId);
+            fields.put("slaveId", 1);
             fields.put("funcCode", funcCode);
             fields.put("startAddr", response[2]);
             fields.put("NoOfReg", response[3]);
@@ -71,6 +71,25 @@ public class ParseAndResponse {
             // 나머지 파라미터와 CRC 출력
             return getStringObjectMap(response, slaveId, funcCode, byteCount, fields2);
 
+        } else if (byteCount == 0x08) {
+            Map<String, Object> fields3 = new HashMap<>();
+            int dataStartIndex = 3; // 응답 데이터의 시작 인덱스
+            while (dataStartIndex + 1 < response.length) {
+                byte hi = response[dataStartIndex];
+                byte lo = response[dataStartIndex + 1];
+                int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
+
+                String translatedTag = translateToEnglish14(dataStartIndex);
+                String formattedValue = formatData4(dataStartIndex, value);
+
+                fields3.put(translatedTag, formattedValue);
+                logParsedData(formattedValue);
+
+                dataStartIndex += 2;
+            }
+
+            // 나머지 파라미터와 CRC 출력
+            return getStringObjectMap(response, slaveId, funcCode, byteCount, fields3);
         } else {
             log.info("write data: {}", Arrays.toString(response));
             Map<String, Object> exceptionResponse = new HashMap<>();
@@ -128,7 +147,6 @@ public class ParseAndResponse {
         json.addProperty("OUT_V", (String) stringObjectMap.get("Output Voltage"));
         json.addProperty("DC_LINK_V", (String) stringObjectMap.get("DC Link Voltage"));
         json.addProperty("KW", (String) stringObjectMap.get("Output Kw"));
-        json.addProperty("REMOTE", statusArray[0].equals("HAND") ? 0 : 1);
         json.addProperty("INV_POWER_ST", (String) stringObjectMap.get("Deceleration Time"));
         return json;
     }
@@ -142,6 +160,17 @@ public class ParseAndResponse {
         switch (dataStartIndex) {
             case 3 -> {
                 return String.valueOf((value * 0.01));
+            }
+            default -> {
+                return Integer.toHexString(value);
+            }
+        }
+    }
+
+    private String formatData4(int dataStartIndex, int value) {
+        switch (dataStartIndex) {
+            case 3 -> {
+                return getRunStatusString(value);
             }
             default -> {
                 return Integer.toHexString(value);
@@ -204,7 +233,7 @@ public class ParseAndResponse {
                 return "Output Kw";
             }
             case 17 -> {
-                return "Operating Status";
+                return "Operation Status";
             }
             default -> {
                 return "CRC";
@@ -212,33 +241,9 @@ public class ParseAndResponse {
         }
     }
 
-    private String translateToEnglish10(int dataStartIndex) {
+    private String translateToEnglish14(int dataStartIndex) {
         switch (dataStartIndex) {
-            case 3-> {
-                return "Target Frequency";
-            }
-            case 7 -> {
-                return "Acceleration Time";
-            }
-            case 9 -> {
-                return "Deceleration Time";
-            }
-            case 11 -> {
-                return "Output Current";
-            }
-            case 13 -> {
-                return "Output Frequency";
-            }
-            case 15 -> {
-                return "Output Voltage";
-            }
-            case 17 -> {
-                return "DC Link Voltage";
-            }
-            case 19 -> {
-                return "Output Kw";
-            }
-            case 21 -> {
+            case 3 -> {
                 return "Operating Status";
             }
             default -> {

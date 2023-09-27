@@ -2,6 +2,7 @@ package com.example.ModbusClient.config.mqtt;
 
 import com.example.ModbusClient.config.netty.TestHexProtocolClientHandler;
 import com.example.ModbusClient.service.ModbusServiceTest;
+import com.example.ModbusClient.util.mqtt.MqttPayloadMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.MqttClient;
@@ -25,7 +26,7 @@ public class MqttConfig {
     @Value("${mqtt.application-id}")
     private String applicationId;
 
-    private final ModbusServiceTest modbusService;
+    private final MqttPayloadMap mqttPayloadMap;
     private final TestHexProtocolClientHandler testHexProtocolClientHandler;
 
     @Bean
@@ -42,7 +43,7 @@ public class MqttConfig {
         client.connect(options);
         client.subscribe(topic, 0);
 
-        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, modbusService, testHexProtocolClientHandler);
+        CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, mqttPayloadMap, testHexProtocolClientHandler);
         client.setCallback(customMqttCallback);
         client.setTimeToWait(10000);
 

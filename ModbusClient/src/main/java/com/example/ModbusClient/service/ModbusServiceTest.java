@@ -9,6 +9,8 @@ import com.example.ModbusClient.entity.modbus.WriteRequestParameters;
 import com.example.ModbusClient.util.InfluxManager;
 import com.example.ModbusClient.util.modbus.ModbusProtocol;
 import com.example.ModbusClient.util.modbus.ModbusTCP6266;
+import com.example.ModbusClient.util.modbus.Request;
+import com.example.ModbusClient.util.mqtt.MqttPayloadMap;
 import com.ghgande.j2mod.modbus.util.BitVector;
 import com.google.gson.JsonObject;
 import io.netty.bootstrap.Bootstrap;
@@ -27,13 +29,14 @@ import org.eclipse.paho.mqttv5.client.persist.MemoryPersistence;
 import org.eclipse.paho.mqttv5.common.MqttException;
 import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayToHexString;
 
@@ -44,19 +47,19 @@ import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayTo
 public class ModbusServiceTest {
 
     private final Map<Channel, Integer> serversOrderMap = new ConcurrentHashMap<>();
-    private Map<String, Object> previousData = new ConcurrentHashMap<>();
     private final AtomicReference<byte[]> firstResponse = new AtomicReference<>();
     private final AtomicReference<byte[]> secondResponse = new AtomicReference<>();
+    private final AtomicReference<byte[]> thirdResponse = new AtomicReference<>();
     private final ModbusProtocol modbusProtocol;
     private final ModbusTCP6266 tcp6266;
     private final BitVector previousDiCoilValues = new BitVector(4);
     private final BitVector previousDoCoilValues = new BitVector(4);
     private final ModbusRequestProperties modbusRequestProperties;
+    private final MqttPayloadMap mqttPayloadMap;
     private int orderCount = 0;
     private long startTime;
-    private boolean isFirstRequest = true;
-    private boolean isProcessing = false;
     private final InfluxManager influxManager;
+    private final Request request;
 
     /**
      * 서버 연결이 추가 될 때 연결 한 server 를 추가
@@ -87,28 +90,12 @@ public class ModbusServiceTest {
         }
     }
 
-
-    /**
-     * 연결된 서버에 Modbus protocol 을 이용해 스케쥴을 통해 해당 시간마다 요청을 보낸다.
-     */
-
-    public void connectAndRequest() throws InterruptedException {
-        startTime = System.currentTimeMillis();
-
-        isFirstRequest = true;
-        sendSecondRequest();
-
-        long endTime = System.currentTimeMillis();
-        long elapsedTime = endTime - startTime;
-
-        log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+    public void sendFirstRequest() throws InterruptedException {
+        request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
     }
-
 
     public void heartbeatRequest() throws InterruptedException {
         startTime = System.currentTimeMillis();
-
-        isFirstRequest = true;
         sendFirstRequest();
 
         long endTime = System.currentTimeMillis();
@@ -152,62 +139,8 @@ public class ModbusServiceTest {
         return currentDoCoilValues;
     }
 
-    public void sendFirstRequest() {
+    public void onFirstResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
 
-        for (Channel ctx : serversOrderMap.keySet()) {
-            try {
-                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-                ReadRequestParameters readRequestParameters = readRequests.get(1);
-
-                ByteBuf request = Unpooled.buffer();
-                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-                writeMessaging(ctx, request, modbusRequest);
-
-            } catch (Exception e) {
-                log.error("Error occurred while sending second request: ", e);
-            }
-        }
-
-    }
-
-    public void sendSecondRequest() {
-
-        for (Channel ctx : serversOrderMap.keySet()) {
-            try {
-                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-                ReadRequestParameters readRequestParameters = readRequests.get(0);
-
-                ByteBuf request = Unpooled.buffer();
-                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-                writeMessaging(ctx, request, modbusRequest);
-
-            } catch (Exception e) {
-                log.error("Error occurred while sending second request: ", e);
-            }
-        }
-
-    }
-
-    /**
-     *
-     */
-    private void writeMessaging(Channel channel, ByteBuf request, byte[] writeRequest) {
-        request.writeBytes(writeRequest);
-
-        ChannelFuture future = channel.writeAndFlush(request);
-        future.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(@NotNull ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    log.info("send to Modbus RTU Request: {}", byteArrayToHexString(writeRequest));
-                } else {
-                    log.error("Failed to send request: ", future.cause());
-                }
-            }
-        });
-    }
-
-    public void onFirstResponseReceived(byte[] response, ChannelHandlerContext ctx) {
         firstResponse.set(response);
         ParseAndResponse parseAndResponse = new ParseAndResponse();
         Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(firstResponse.getAndSet(null));
@@ -221,7 +154,7 @@ public class ModbusServiceTest {
                 .build();
 
 
-        String status = (String) stringObjectMap.get("Operating Status");
+        String status = (String) stringObjectMap.get("Operation Status");
         String[] splitStatus = status.split(",");
 
         JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(stringObjectMap, splitStatus);
@@ -235,108 +168,24 @@ public class ModbusServiceTest {
 
         sendMqttMessage(device1, jsonObject);
         log.info("first response complete!!");
-    }
+        Thread.sleep(5000);
 
-    private void handleScheduleUpdate(ServerInfo serverInfo, Map<String, Object> newData) {
-        for (Map.Entry<String, Object> entry : newData.entrySet()) {
-            String key = entry.getKey();
-            Object currentValue = entry.getValue();
-            Object previousValue = previousData.get(key);
-
-            if (!Objects.equals(currentValue, previousValue)) {
-                ParseAndResponse parseAndResponse = new ParseAndResponse();
-
-                String status = (String) newData.get("Operating Status");
-                String[] splitStatus = status.split(",");
-
-                JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(newData, splitStatus);
-                sendMqttMessage(serverInfo, jsonObject);
-                previousData.put(key, currentValue);
-            }
-        }
+        sendFirstRequest();
     }
 
     public void onSecondResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
-        List<BitVector> bitVectors = connectAndCheckCoilValues();
-        BitVector diVector = bitVectors.get(0);
-        BitVector doVector = bitVectors.get(1);
         secondResponse.set(response);
-        ParseAndResponse parseAndResponse = new ParseAndResponse();
+        Thread.sleep(5000);
 
-        Map<String, Object> parsed = parseAndResponse.parseAndLogResponse(secondResponse.getAndSet(null));
-        Map<String, Object> saveData = new HashMap<>(parsed);
-        String targetFrequency = (String) parsed.get("Target Frequency");
+        request.sendSecondRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
 
-        JsonObject jsonObject = new JsonObject();
-        boolean inFanOn = diVector.getBit(0);
-        boolean inRemote = diVector.getBit(1);
-        boolean outFanOn = doVector.getBit(0);
-        boolean outRemote = doVector.getBit(1);
-        jsonObject.addProperty("HZ_PV", targetFrequency);
-        jsonObject.addProperty("FAN_ON", !outFanOn ? 0 : 1);
-        jsonObject.addProperty("REMOTE", outRemote);
-
-        log.info("target frequency: {}", targetFrequency);
-        InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-
-        ServerInfo device1 = ServerInfo.builder()
-                .name("device1")
-                .host(socketAddress.getAddress().getHostAddress())
-                .port(socketAddress.getPort())
-                .build();
-
-        saveData.put("deviceIP", device1.getHost());
-        saveData.put("devicePort", device1.getPort());
-
-        influxManager.saveDataToInfluxDB(saveData);
-
-        sendMqttMessage(device1, jsonObject);
         log.info("first response complete!!");
-        log.info("JsonObject: {}", jsonObject);
+
     }
 
-    public void writeRequest(DataModel dataModel) {
-        // 이부분은 추후에 값을 주입해서 해줘야함.
-        log.info("여기까지는 진행함.");
+    public void writeResponseParsing(byte[] data, ChannelHandlerContext ctx) throws InterruptedException {
 
-        int hzSv = Integer.parseInt(dataModel.getData().getHzSv());
-        int fanOn = dataModel.getData().getFanOn();
-        boolean remote = dataModel.getData().isRemote();
-        String host = dataModel.getDeviceInfo().getHost();
-        int port = dataModel.getDeviceInfo().getPort();
-
-        List<Integer> values = new ArrayList<>();
-        // 맞는지 정확히 할 필요 있음
-        // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
-        values.add(hzSv);
-
-        boolean b = fanOn != 0;
-        tcp6266.writeCoilValues(b);
-        tcp6266.writeCoilValues(remote);
-
-        for (int v : values) {
-
-            log.info("value: {}", v);
-        }
-
-        WriteRequestParameters build = WriteRequestParameters.builder()
-                .parameterCount(0x02)
-                .startAddress(0x0004)
-                .values(values)
-                .build();
-
-        ByteBuf request = Unpooled.buffer();
-        byte[] modbusRequest = modbusProtocol.getWriteRequest.apply(build);
-
-        Bootstrap bootstrap =  new Bootstrap();
-        ChannelFuture future = bootstrap.connect(host, port);
-
-        writeMessaging(future.channel(), request, modbusRequest);
-        log.info("성공적으로 제어 신호 보냄");
-    }
-
-    public void writeResponseParsing(byte[] data, ChannelHandlerContext ctx) {
-
+        tcp6266.connect();
         BitVector tcp6266Bit = getTcp6266Bit();
         boolean fanOn = tcp6266Bit.getBit(0);
         boolean remote = tcp6266Bit.getBit(1);
@@ -351,7 +200,10 @@ public class ModbusServiceTest {
                 .port(socketAddress.getPort())
                 .build();
 
-        
+        mqttPayloadMap.clearResultMap();
+
+        request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+
     }
 
     private void sendMqttMessage(ServerInfo serverInfo, JsonObject data) {
@@ -395,4 +247,213 @@ public class ModbusServiceTest {
         return new String(base64Data);
     }
 
+    public void onThirdResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
+        thirdResponse.set(response);
+
+        ParseAndResponse parseAndResponse = new ParseAndResponse();
+        List<BitVector> bitVectors = connectAndCheckCoilValues();
+        BitVector diVector = bitVectors.get(0);
+        BitVector doVector = bitVectors.get(1);
+
+
+        Map<String, Object> parsed = parseAndResponse.parseAndLogResponse(secondResponse.getAndSet(null));
+        Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(thirdResponse.getAndSet(null));
+
+        String status = (String) stringObjectMap.get("Operating Status");
+        String[] splitStatus = status.split(",");
+
+        Map<String, Object> saveData = new HashMap<>(parsed);
+        saveData.putAll(stringObjectMap);
+        String targetFrequency = (String) parsed.get("Target Frequency");
+
+        JsonObject jsonObject = new JsonObject();
+        boolean inFanOn = diVector.getBit(0);
+//        boolean inRemote = diVector.getBit(1);
+        boolean outFanOn = doVector.getBit(0);
+//        boolean outRemote = doVector.getBit(1);
+        jsonObject.addProperty("HZ_PV", targetFrequency);
+        jsonObject.addProperty("FAN_ON", !outFanOn ? 0 : 1);
+        jsonObject.addProperty("REMOTE", splitStatus[0].equals("HAND") ? 0: 1);
+
+        log.info("target frequency: {}", targetFrequency);
+        InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+
+        ServerInfo device1 = ServerInfo.builder()
+                .name("device1")
+                .host(socketAddress.getAddress().getHostAddress())
+                .port(socketAddress.getPort())
+                .build();
+
+        saveData.put("deviceIP", device1.getHost());
+        saveData.put("devicePort", device1.getPort());
+
+
+        influxManager.saveDataToInfluxDB(saveData);
+
+        sendMqttMessage(device1, jsonObject);
+
+        Thread.sleep(5000);
+        Map<String, Object> resultMap = mqttPayloadMap.getResultMap();
+        if (resultMap.get("dataModel") == null) {
+            request.sendThirdRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+        } else {
+            request.sendMqttRequest(ctx, tcp6266, (DataModel) resultMap.get("dataModel"), modbusProtocol);
+        }
+    }
+
+
+    //    /**
+//     * 연결된 서버에 Modbus protocol 을 이용해 스케쥴을 통해 해당 시간마다 요청을 보낸다.
+//     */
+//
+//    public void connectAndRequest() throws InterruptedException {
+//        startTime = System.currentTimeMillis();
+//
+//        isFirstRequest = true;
+//        sendSecondRequest();
+//
+
+//        long endTime = System.currentTimeMillis();
+
+//        long elapsedTime = endTime - startTime;
+
+//
+
+//        log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+
+//    }
+
+
+//    private void getParameters(Channel ctx) throws InterruptedException {
+//        List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
+//        ReadRequestParameters readRequestParameters = readRequests.get(1);
+//        ReadRequestParameters readRequestParameters1 = readRequests.get(2);
+//
+//        ByteBuf request = Unpooled.buffer();
+//        byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
+//        writeMessaging(ctx, request, modbusRequest);
+//
+//        ByteBuf request2 = Unpooled.buffer();
+//        byte[] modbusRequest2 = modbusProtocol.getReadRequest.apply(readRequestParameters1);
+//        writeMessaging(ctx, request2, modbusRequest2);
+//
+//    }
+//
+//    public void sendSecondRequest() {
+//        for (Channel ctx : serversOrderMap.keySet()) {
+//            try {
+//                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
+//                ReadRequestParameters readRequestParameters = readRequests.get(0);
+//
+//                ByteBuf request = Unpooled.buffer();
+//                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
+//                writeMessaging(ctx, request, modbusRequest);
+//
+//            } catch (Exception e) {
+//                log.error("Error occurred while sending second request: ", e);
+//            }
+//        }
+//    }
+
+    //    public void sendThirdRequest() {
+//        for (Channel ctx : serversOrderMap.keySet()) {
+//            try {
+//                getParameters(ctx);
+//
+//                if (mqttDownMessageData != null) {
+//                    DataModel dataModel = (DataModel) mqttDownMessageData.get("dataModel");
+//
+//                    writeRequest(dataModel);
+//                }
+//                Thread.sleep(10000);
+//                heartbeatRequest();
+//
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+//    }
+
+//    /**
+//     *
+//     */
+//    private void writeMessaging(Channel channel, ByteBuf request, byte[] writeRequest) {
+//        request.writeBytes(writeRequest);
+//
+//        ChannelFuture future = channel.writeAndFlush(request);
+//        future.addListener(new ChannelFutureListener() {
+//            @Override
+//            public void operationComplete(@NotNull ChannelFuture future) throws Exception {
+//                if (future.isSuccess()) {
+//                    Thread.sleep(5000);
+//                    log.info("send to Modbus RTU Request: {}", byteArrayToHexString(writeRequest));
+//                } else {
+//                    log.error("Failed to send request: ", future.cause());
+//                }
+
+//            }
+
+//        });
+//    }
+//    private void handleScheduleUpdate(ServerInfo serverInfo, Map<String, Object> newData) {
+//        for (Map.Entry<String, Object> entry : newData.entrySet()) {
+//            String key = entry.getKey();
+//            Object currentValue = entry.getValue();
+//            Object previousValue = previousData.get(key);
+//
+//            if (!Objects.equals(currentValue, previousValue)) {
+//                ParseAndResponse parseAndResponse = new ParseAndResponse();
+//
+//                String status = (String) newData.get("Operating Status");
+//                String[] splitStatus = status.split(",");
+//
+//                JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(newData, splitStatus);
+//                sendMqttMessage(serverInfo, jsonObject);
+//                previousData.put(key, currentValue);
+//            }
+
+//        }
+
+//    }
+//    public void writeRequest(DataModel dataModel) {
+//        // 이부분은 추후에 값을 주입해서 해줘야함.
+//
+//        tcp6266.connect();
+//        int hzSv = Integer.parseInt(dataModel.getData().getHzSv());
+//        int fanOn = dataModel.getData().getFanOn();
+//        String host = dataModel.getDeviceInfo().getHost();
+//        int port = dataModel.getDeviceInfo().getPort();
+//
+//        List<Integer> values = new ArrayList<>();
+//        // 맞는지 정확히 할 필요 있음
+//        // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
+//        values.add(hzSv);
+//
+//        log.info("fanOn: {}", fanOn);
+//        log.info("hzSv: {}", hzSv);
+//        tcp6266.writeCoilFanOn(fanOn);
+//
+//        log.info("여기까지는 진행함.");
+//
+//        for (int v : values) {
+//
+//            log.info("value: {}", v);
+//        }
+//
+//        WriteRequestParameters build = WriteRequestParameters.builder()
+//                .parameterCount(0x01)
+//                .startAddress(0x0004)
+//                .values(values)
+//                .build();
+//
+//        ByteBuf request = Unpooled.buffer();
+//        byte[] modbusRequest = modbusProtocol.getWriteRequest.apply(build);
+//
+//        Bootstrap bootstrap =  new Bootstrap();
+//        ChannelFuture future = bootstrap.connect(host, port);
+//
+//        writeMessaging(future.channel(), request, modbusRequest);
+//        log.info("성공적으로 제어 신호 보냄");
+
+//    }
 }

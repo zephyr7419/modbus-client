@@ -5,6 +5,7 @@ import com.example.ModbusClient.config.netty.TestHexProtocolClientHandler;
 import com.example.ModbusClient.dto.DataModel;
 import com.example.ModbusClient.service.ModbusServiceTest;
 import com.example.ModbusClient.util.mqtt.MqttMessageParser;
+import com.example.ModbusClient.util.mqtt.MqttPayloadMap;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.IMqttToken;
@@ -15,6 +16,8 @@ import org.eclipse.paho.mqttv5.common.MqttException;
 import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 
+import java.util.concurrent.CompletableFuture;
+
 @Slf4j
 @AllArgsConstructor
 public class CustomMqttCallback implements MqttCallback {
@@ -22,7 +25,7 @@ public class CustomMqttCallback implements MqttCallback {
 //    private UpEventService upEventService;
     private MqttClient client;
     private String topic;
-    private final ModbusServiceTest modbusService;
+    private final MqttPayloadMap mqttPayloadMap;
     private final TestHexProtocolClientHandler testHexProtocolClientHandler;
     @Override
     public void disconnected(MqttDisconnectResponse disconnectResponse) {
@@ -45,7 +48,9 @@ public class CustomMqttCallback implements MqttCallback {
         MqttMessageParser messageParser = new MqttMessageParser();
         DataModel parse = messageParser.parse(message);
 
-        testHexProtocolClientHandler.getPayload(parse);
+        mqttPayloadMap.savePayload(parse);
+
+
 //        modbusService.writeRequest(parse);
 
     }

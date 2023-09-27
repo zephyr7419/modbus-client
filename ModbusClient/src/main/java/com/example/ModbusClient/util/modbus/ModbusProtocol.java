@@ -38,23 +38,25 @@ public class ModbusProtocol {
     };
 
     public Function<WriteRequestParameters, byte[]> getWriteRequest = writeRequestParameters -> {
-        ByteBuffer buffer = ByteBuffer.allocate(7 + writeRequestParameters.getParameterCount() * 2);
+        ByteBuffer buffer = ByteBuffer.allocate(6);
         buffer.order(ByteOrder.BIG_ENDIAN);
         buffer.put((byte) 1);
-        buffer.put((byte) 0x10);
+        buffer.put((byte) 0x06);
         buffer.put((byte) ((writeRequestParameters.getStartAddress() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getStartAddress()  & 0xFF));
-        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
-        buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
-        buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));
+        buffer.put((byte) ((writeRequestParameters.getValue() >> 8) & 0xFF));
+        buffer.put((byte) (writeRequestParameters.getValue()  & 0xFF));
+//        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
+//        buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
+//        buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));
 
-        for (int value : writeRequestParameters.getValues()) {
-            buffer.put((byte) ((value >> 8) & 0xFF));
-            buffer.put((byte) (value & 0xFF));
-        }
+//        for (int value : writeRequestParameters.getValues()) {
+//            buffer.put((byte) ((value >> 8) & 0xFF));
+//            buffer.put((byte) (value & 0xFF));
+//        }
 
         byte[] bytes = calculateCRC16Modbus(buffer.array());
-        ByteBuffer finalBuffer = ByteBuffer.allocate(9 + writeRequestParameters.getParameterCount() * 2);
+        ByteBuffer finalBuffer = ByteBuffer.allocate(8);
         finalBuffer.order(ByteOrder.BIG_ENDIAN);
         finalBuffer.put(buffer.array());
         finalBuffer.put(bytes[0]);
