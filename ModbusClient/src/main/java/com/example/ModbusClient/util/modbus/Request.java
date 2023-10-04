@@ -43,36 +43,36 @@ public class Request {
         }
     }
 
-    public void sendSecondRequest(Map<Channel, Integer> serversOrderMap, ModbusRequestProperties modbusRequestProperties, ModbusProtocol modbusProtocol) {
-        for (Channel ctx : serversOrderMap.keySet()) {
-            try {
-                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-                ReadRequestParameters readRequestParameters = readRequests.get(2);
+    public void sendSecondRequest(Channel channel, ModbusRequestProperties modbusRequestProperties, ModbusProtocol modbusProtocol) {
 
-                ByteBuf request = Unpooled.buffer();
-                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-                writeMessaging(ctx, request, modbusRequest);
+        try {
+            List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
+            ReadRequestParameters readRequestParameters = readRequests.get(2);
 
-            } catch (Exception e) {
-                log.error("Error occurred while sending second request: ", e);
-            }
+            ByteBuf request = Unpooled.buffer();
+            byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
+            writeMessaging(channel, request, modbusRequest);
+
+        } catch (Exception e) {
+            log.error("Error occurred while sending second request: ", e);
         }
+
     }
 
-    public void sendThirdRequest(Map<Channel, Integer> serversOrderMap, ModbusRequestProperties modbusRequestProperties, ModbusProtocol modbusProtocol) {
-        for (Channel ctx : serversOrderMap.keySet()) {
-            try {
-                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-                ReadRequestParameters readRequestParameters = readRequests.get(0);
+    public void sendThirdRequest(Channel channel, ModbusRequestProperties modbusRequestProperties, ModbusProtocol modbusProtocol) {
 
-                ByteBuf request = Unpooled.buffer();
-                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-                writeMessaging(ctx, request, modbusRequest);
+        try {
+            List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
+            ReadRequestParameters readRequestParameters = readRequests.get(0);
 
-            } catch (Exception e) {
-                log.error("Error occurred while sending second request: ", e);
-            }
+            ByteBuf request = Unpooled.buffer();
+            byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
+            writeMessaging(channel, request, modbusRequest);
+
+        } catch (Exception e) {
+            log.error("Error occurred while sending second request: ", e);
         }
+
     }
 
     private void writeMessaging(Channel channel, ByteBuf request, byte[] writeRequest) {
@@ -92,7 +92,7 @@ public class Request {
         });
     }
 
-    public void sendMqttRequest(ChannelHandlerContext ctx, ModbusTCP6266 tcp6266, DataModel dataModel, ModbusProtocol modbusProtocol) {
+    public void sendMqttRequest(Channel ctx, ModbusTCP6266 tcp6266, DataModel dataModel, ModbusProtocol modbusProtocol) {
         // 이부분은 추후에 값을 주입해서 해줘야함.
 
         tcp6266.connect();
@@ -105,7 +105,6 @@ public class Request {
         // 맞는지 정확히 할 필요 있음
         // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
         values.add(hzSv);
-        values.add(0x0000);
 
         log.info("fanOn: {}", fanOn);
         log.info("hzSv: {}", hzSv);
@@ -126,7 +125,7 @@ public class Request {
         ByteBuf request = Unpooled.buffer();
         byte[] modbusRequest = modbusProtocol.getWriteRequest.apply(build);
 
-        writeMessaging(ctx.channel(), request, modbusRequest);
+        writeMessaging(ctx, request, modbusRequest);
         log.info("성공적으로 제어 신호 보냄");
     }
 

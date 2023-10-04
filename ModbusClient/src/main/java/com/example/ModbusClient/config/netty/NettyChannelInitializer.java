@@ -1,19 +1,20 @@
 package com.example.ModbusClient.config.netty;
 
-import com.example.ModbusClient.util.InfluxManager;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
 public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
 //    private final HexProtocolClientHandler handler;
-    private final InfluxManager influxManager;
     private final TestHexProtocolClientHandler handler;
 
     @Override
@@ -22,6 +23,7 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
         ModbusRTUDecoder decoder = new ModbusRTUDecoder();
         ModbusRTUEncoder encoder = new ModbusRTUEncoder();
+        pipeline.addLast(new ReadTimeoutHandler(25, TimeUnit.SECONDS));
         pipeline.addLast(decoder, encoder, handler);
     }
 }

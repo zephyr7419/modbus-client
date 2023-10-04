@@ -12,12 +12,13 @@ import org.springframework.context.annotation.Configuration;
 public class NettyConfig {
 
     @Bean
-    public Bootstrap bootstrap(NettyChannelInitializer nettyChannelInitializer) {
+    public Bootstrap readBootstrap(NettyChannelInitializer nettyChannelInitializer) {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group()).channel(NioSocketChannel.class).handler(nettyChannelInitializer);
 
         return bootstrap;
     }
+
 
     @Bean(destroyMethod = "shutdownGracefully")
     public NioEventLoopGroup group() {

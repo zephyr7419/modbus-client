@@ -1,6 +1,7 @@
 package com.example.ModbusClient.service;
 
 import com.example.ModbusClient.config.netty.ParseAndResponse;
+import com.example.ModbusClient.dto.Data;
 import com.example.ModbusClient.dto.DataModel;
 import com.example.ModbusClient.entity.modbus.ModbusRequestProperties;
 import com.example.ModbusClient.entity.modbus.ReadRequestParameters;
@@ -29,12 +30,12 @@ import org.eclipse.paho.mqttv5.client.persist.MemoryPersistence;
 import org.eclipse.paho.mqttv5.common.MqttException;
 import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.net.InetSocketAddress;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -55,17 +56,58 @@ public class ModbusServiceTest {
     private final BitVector previousDiCoilValues = new BitVector(4);
     private final BitVector previousDoCoilValues = new BitVector(4);
     private final ModbusRequestProperties modbusRequestProperties;
-    private final MqttPayloadMap mqttPayloadMap;
     private int orderCount = 0;
     private long startTime;
     private final InfluxManager influxManager;
     private final Request request;
+    private final MqttConvertTCP mqttConvertTCP;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+    public void startScheduling() {
+        scheduler.scheduleWithFixedDelay(this::firstSchedule, 0, 60, TimeUnit.SECONDS);
+    }
+
+    public void firstSchedule() {
+
+        sendFirstRequest();
+        scheduler.schedule(this::secondRequest, 2, TimeUnit.SECONDS);
+        scheduler.schedule(this::thirdRequest, 2, TimeUnit.SECONDS);
+        scheduler.schedule(this::sendFirstRequest, 10, TimeUnit.SECONDS);
+        scheduler.schedule(this::secondSchedule, 5, TimeUnit.SECONDS);
+
+    }
+
+    public void secondRequest() {
+        for (Map.Entry<Channel, Integer> entry : serversOrderMap.entrySet()) {
+            Channel key = entry.getKey();
+            request.sendSecondRequest(key, modbusRequestProperties, modbusProtocol);
+        }
+    }
+
+    public void thirdRequest() {
+        for (Map.Entry<Channel, Integer> entry : serversOrderMap.entrySet()) {
+            Channel key = entry.getKey();
+            request.sendThirdRequest(key, modbusRequestProperties, modbusProtocol);
+        }
+    }
+
+    public void secondSchedule() {
+
+        CompletableFuture<DataModel> data = mqttConvertTCP.getData();
+        DataModel join = data.join();
+        for (Map.Entry<Channel, Integer> entry : serversOrderMap.entrySet()) {
+            Channel channel = entry.getKey();
+
+            request.sendMqttRequest(channel, tcp6266, join, modbusProtocol);
+
+        }
+        log.info("data : {}", join);
+
+    }
     /**
      * 서버 연결이 추가 될 때 연결 한 server 를 추가
      */
     public void addServer(Channel channel) {
-
         serversOrderMap.put(channel, ++orderCount);
         listClients();
     }
@@ -90,11 +132,19 @@ public class ModbusServiceTest {
         }
     }
 
-    public void sendFirstRequest() throws InterruptedException {
-        request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+    public Map<Channel, Integer> getConnectingServer() {
+        return serversOrderMap;
     }
 
-    public void heartbeatRequest() throws InterruptedException {
+    public void sendFirstRequest()  {
+        try {
+            request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void heartbeatRequest() throws InterruptedException {
         startTime = System.currentTimeMillis();
         sendFirstRequest();
 
@@ -170,14 +220,11 @@ public class ModbusServiceTest {
         log.info("first response complete!!");
         Thread.sleep(5000);
 
-        sendFirstRequest();
     }
 
     public void onSecondResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
         secondResponse.set(response);
         Thread.sleep(5000);
-
-        request.sendSecondRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
 
         log.info("first response complete!!");
 
@@ -200,7 +247,7 @@ public class ModbusServiceTest {
                 .port(socketAddress.getPort())
                 .build();
 
-        mqttPayloadMap.clearResultMap();
+//        mqttPayloadMap.clearResultMap();
 
         request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
 
@@ -287,173 +334,12 @@ public class ModbusServiceTest {
         saveData.put("deviceIP", device1.getHost());
         saveData.put("devicePort", device1.getPort());
 
-
         influxManager.saveDataToInfluxDB(saveData);
 
         sendMqttMessage(device1, jsonObject);
 
         Thread.sleep(5000);
-        Map<String, Object> resultMap = mqttPayloadMap.getResultMap();
-        if (resultMap.get("dataModel") == null) {
-            request.sendThirdRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
-        } else {
-            request.sendMqttRequest(ctx, tcp6266, (DataModel) resultMap.get("dataModel"), modbusProtocol);
-        }
+
+
     }
-
-
-    //    /**
-//     * 연결된 서버에 Modbus protocol 을 이용해 스케쥴을 통해 해당 시간마다 요청을 보낸다.
-//     */
-//
-//    public void connectAndRequest() throws InterruptedException {
-//        startTime = System.currentTimeMillis();
-//
-//        isFirstRequest = true;
-//        sendSecondRequest();
-//
-
-//        long endTime = System.currentTimeMillis();
-
-//        long elapsedTime = endTime - startTime;
-
-//
-
-//        log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
-
-//    }
-
-
-//    private void getParameters(Channel ctx) throws InterruptedException {
-//        List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-//        ReadRequestParameters readRequestParameters = readRequests.get(1);
-//        ReadRequestParameters readRequestParameters1 = readRequests.get(2);
-//
-//        ByteBuf request = Unpooled.buffer();
-//        byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-//        writeMessaging(ctx, request, modbusRequest);
-//
-//        ByteBuf request2 = Unpooled.buffer();
-//        byte[] modbusRequest2 = modbusProtocol.getReadRequest.apply(readRequestParameters1);
-//        writeMessaging(ctx, request2, modbusRequest2);
-//
-//    }
-//
-//    public void sendSecondRequest() {
-//        for (Channel ctx : serversOrderMap.keySet()) {
-//            try {
-//                List<ReadRequestParameters> readRequests = modbusRequestProperties.getReadRequests();
-//                ReadRequestParameters readRequestParameters = readRequests.get(0);
-//
-//                ByteBuf request = Unpooled.buffer();
-//                byte[] modbusRequest = modbusProtocol.getReadRequest.apply(readRequestParameters);
-//                writeMessaging(ctx, request, modbusRequest);
-//
-//            } catch (Exception e) {
-//                log.error("Error occurred while sending second request: ", e);
-//            }
-//        }
-//    }
-
-    //    public void sendThirdRequest() {
-//        for (Channel ctx : serversOrderMap.keySet()) {
-//            try {
-//                getParameters(ctx);
-//
-//                if (mqttDownMessageData != null) {
-//                    DataModel dataModel = (DataModel) mqttDownMessageData.get("dataModel");
-//
-//                    writeRequest(dataModel);
-//                }
-//                Thread.sleep(10000);
-//                heartbeatRequest();
-//
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
-//        }
-//    }
-
-//    /**
-//     *
-//     */
-//    private void writeMessaging(Channel channel, ByteBuf request, byte[] writeRequest) {
-//        request.writeBytes(writeRequest);
-//
-//        ChannelFuture future = channel.writeAndFlush(request);
-//        future.addListener(new ChannelFutureListener() {
-//            @Override
-//            public void operationComplete(@NotNull ChannelFuture future) throws Exception {
-//                if (future.isSuccess()) {
-//                    Thread.sleep(5000);
-//                    log.info("send to Modbus RTU Request: {}", byteArrayToHexString(writeRequest));
-//                } else {
-//                    log.error("Failed to send request: ", future.cause());
-//                }
-
-//            }
-
-//        });
-//    }
-//    private void handleScheduleUpdate(ServerInfo serverInfo, Map<String, Object> newData) {
-//        for (Map.Entry<String, Object> entry : newData.entrySet()) {
-//            String key = entry.getKey();
-//            Object currentValue = entry.getValue();
-//            Object previousValue = previousData.get(key);
-//
-//            if (!Objects.equals(currentValue, previousValue)) {
-//                ParseAndResponse parseAndResponse = new ParseAndResponse();
-//
-//                String status = (String) newData.get("Operating Status");
-//                String[] splitStatus = status.split(",");
-//
-//                JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(newData, splitStatus);
-//                sendMqttMessage(serverInfo, jsonObject);
-//                previousData.put(key, currentValue);
-//            }
-
-//        }
-
-//    }
-//    public void writeRequest(DataModel dataModel) {
-//        // 이부분은 추후에 값을 주입해서 해줘야함.
-//
-//        tcp6266.connect();
-//        int hzSv = Integer.parseInt(dataModel.getData().getHzSv());
-//        int fanOn = dataModel.getData().getFanOn();
-//        String host = dataModel.getDeviceInfo().getHost();
-//        int port = dataModel.getDeviceInfo().getPort();
-//
-//        List<Integer> values = new ArrayList<>();
-//        // 맞는지 정확히 할 필요 있음
-//        // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
-//        values.add(hzSv);
-//
-//        log.info("fanOn: {}", fanOn);
-//        log.info("hzSv: {}", hzSv);
-//        tcp6266.writeCoilFanOn(fanOn);
-//
-//        log.info("여기까지는 진행함.");
-//
-//        for (int v : values) {
-//
-//            log.info("value: {}", v);
-//        }
-//
-//        WriteRequestParameters build = WriteRequestParameters.builder()
-//                .parameterCount(0x01)
-//                .startAddress(0x0004)
-//                .values(values)
-//                .build();
-//
-//        ByteBuf request = Unpooled.buffer();
-//        byte[] modbusRequest = modbusProtocol.getWriteRequest.apply(build);
-//
-//        Bootstrap bootstrap =  new Bootstrap();
-//        ChannelFuture future = bootstrap.connect(host, port);
-//
-//        writeMessaging(future.channel(), request, modbusRequest);
-//        log.info("성공적으로 제어 신호 보냄");
-
-//    }
 }

@@ -1,18 +1,19 @@
 package com.example.ModbusClient.config.netty;
 
+import com.example.ModbusClient.entity.modbus.ModbusRequestProperties;
 import com.example.ModbusClient.service.ModbusServiceTest;
-import io.netty.channel.ChannelFuture;
+import com.example.ModbusClient.util.modbus.ModbusProtocol;
+import com.example.ModbusClient.util.modbus.ModbusTCP6266;
+import com.example.ModbusClient.util.modbus.Request;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.timeout.ReadTimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
@@ -21,22 +22,29 @@ import java.util.Queue;
 public class TestHexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ModbusServiceTest modbusService;
-    private Queue<String> tasks = new ArrayDeque<>();
-    private boolean isProcessing = false;
-    private boolean shouldExecuteC = false;
-    private String message = null;
+    private final ModbusRequestProperties properties;
+    private final ModbusTCP6266 tcp6266;
+    private final ModbusProtocol protocol;
+    private final Request request;
 
-    public TestHexProtocolClientHandler(ModbusServiceTest modbusService) {
+    public TestHexProtocolClientHandler(ModbusServiceTest modbusService, ModbusRequestProperties properties, ModbusTCP6266 tcp6266, ModbusProtocol protocol, Request request) {
         this.modbusService = modbusService;
+        this.properties = properties;
+        this.tcp6266 = tcp6266;
+        this.protocol = protocol;
+        this.request = request;
     }
 
     @Override
     public void channelActive(@NotNull ChannelHandlerContext ctx) throws Exception {
-        modbusService.heartbeatRequest();
+//        ctx.pipeline().addLast(new ReadTimeoutHandler(25, TimeUnit.SECONDS));
+//        modbusService.heartbeatRequest();
+
     }
 
     @Override
     public void channelInactive(@NotNull ChannelHandlerContext ctx) throws Exception {
+//        ctx.pipeline().remove(ReadTimeoutHandler.class);
     }
 
     @Override
@@ -44,12 +52,16 @@ public class TestHexProtocolClientHandler extends ChannelInboundHandlerAdapter {
         byte[] response = (byte[]) msg;
 
         if (response[1] == 6) {
-            Thread.sleep(5000);
-            modbusService.writeResponseParsing(response, ctx);
+            ctx.executor().schedule(() -> {
+                try {
+                    modbusService.writeResponseParsing(response, ctx);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }, 5, TimeUnit.SECONDS);
 
         }else if (response[2] == 4) {
             modbusService.onSecondResponseReceived(response, ctx);
-            log.info("shouldExecuteC: {}", shouldExecuteC);
 
         } else if (response[2] == 8) {
             modbusService.onThirdResponseReceived(response, ctx);
@@ -60,13 +72,29 @@ public class TestHexProtocolClientHandler extends ChannelInboundHandlerAdapter {
             log.info("알 수 없는 정보이다.");
 
         }
-
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        log.error("Exception caught in TestHexProtocolClientHandler:", cause);
+
+        if (cause instanceof ReadTimeoutException) {
+            log.warn("데이터 수신 타임아웃 발생, 재요청 시작!!");
+//            ctx.channel().eventLoop().execute(() -> {
+//                try {
+////                    modbusService.heartbeatRequest();
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            });
+        } else {
+            log.error("예외 발생: {}", cause.getMessage());
+            cause.printStackTrace();
+        }
+
+        log.info("Calling super.exceptionCaught");
+        super.exceptionCaught(ctx, cause); // Add this line
         ctx.close();
-        cause.printStackTrace();
     }
 
     @Override
