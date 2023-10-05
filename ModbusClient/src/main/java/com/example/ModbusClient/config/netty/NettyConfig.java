@@ -1,5 +1,6 @@
 package com.example.ModbusClient.config.netty;
 
+import com.example.ModbusClient.config.netty.handler.NettyChannelInitializer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;

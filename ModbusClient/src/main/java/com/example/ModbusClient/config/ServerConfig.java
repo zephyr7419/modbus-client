@@ -1,6 +1,6 @@
 package com.example.ModbusClient.config;
 
-import com.example.ModbusClient.entity.modbus.ServerInfo;
+import com.example.ModbusClient.dto.modbus.ServerInfo;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;

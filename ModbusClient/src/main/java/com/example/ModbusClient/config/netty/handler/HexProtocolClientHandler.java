@@ -1,10 +1,6 @@
-package com.example.ModbusClient.config.netty;
+package com.example.ModbusClient.config.netty.handler;
 
-import com.example.ModbusClient.entity.modbus.ModbusRequestProperties;
-import com.example.ModbusClient.service.ModbusServiceTest;
-import com.example.ModbusClient.util.modbus.ModbusProtocol;
-import com.example.ModbusClient.util.modbus.ModbusTCP6266;
-import com.example.ModbusClient.util.modbus.Request;
+import com.example.ModbusClient.service.modbus.ModbusService;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -13,26 +9,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
-
 
 @Slf4j
 @Component
 @ChannelHandler.Sharable
-public class TestHexProtocolClientHandler extends ChannelInboundHandlerAdapter {
+public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
-    private final ModbusServiceTest modbusService;
-    private final ModbusRequestProperties properties;
-    private final ModbusTCP6266 tcp6266;
-    private final ModbusProtocol protocol;
-    private final Request request;
+    private final ModbusService modbusService;
 
-    public TestHexProtocolClientHandler(ModbusServiceTest modbusService, ModbusRequestProperties properties, ModbusTCP6266 tcp6266, ModbusProtocol protocol, Request request) {
+    private long startTime;
+
+    public HexProtocolClientHandler(ModbusService modbusService) {
         this.modbusService = modbusService;
-        this.properties = properties;
-        this.tcp6266 = tcp6266;
-        this.protocol = protocol;
-        this.request = request;
+
     }
 
     @Override
@@ -52,22 +41,33 @@ public class TestHexProtocolClientHandler extends ChannelInboundHandlerAdapter {
         byte[] response = (byte[]) msg;
 
         if (response[1] == 6) {
-            ctx.executor().schedule(() -> {
-                try {
-                    modbusService.writeResponseParsing(response, ctx);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }, 5, TimeUnit.SECONDS);
+            startTime = System.currentTimeMillis();
+            modbusService.writeResponseParsing(response, ctx);
+            long endTime = System.currentTimeMillis();
+            long elapsedTime = endTime - startTime;
+            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
 
         }else if (response[2] == 4) {
-            modbusService.onSecondResponseReceived(response, ctx);
+            startTime = System.currentTimeMillis();
+            modbusService.onSecondResponseReceived(response);
+
+            long endTime = System.currentTimeMillis();
+            long elapsedTime = endTime - startTime;
+            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
 
         } else if (response[2] == 8) {
+            startTime = System.currentTimeMillis();
             modbusService.onThirdResponseReceived(response, ctx);
 
+            long endTime = System.currentTimeMillis();
+            long elapsedTime = endTime - startTime;
+            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
         } else if (response[2] == 16){
+            startTime = System.currentTimeMillis();
             modbusService.onFirstResponseReceived(response, ctx);
+            long endTime = System.currentTimeMillis();
+            long elapsedTime = endTime - startTime;
+            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
         } else {
             log.info("알 수 없는 정보이다.");
 

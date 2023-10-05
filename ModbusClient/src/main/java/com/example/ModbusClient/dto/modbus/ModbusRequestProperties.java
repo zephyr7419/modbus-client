@@ -1,4 +1,4 @@
-package com.example.ModbusClient.entity.modbus;
+package com.example.ModbusClient.dto.modbus;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -11,6 +11,5 @@ import java.util.List;
 @Getter @Setter
 @ConfigurationProperties(prefix = "modbus")
 public class ModbusRequestProperties {
-    private List<WriteRequestParameters> writeRequests;
     private List<ReadRequestParameters> readRequests;
 }

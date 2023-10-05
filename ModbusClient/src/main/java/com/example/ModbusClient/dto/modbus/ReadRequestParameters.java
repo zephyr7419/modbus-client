@@ -1,4 +1,4 @@
-package com.example.ModbusClient.entity.modbus;
+package com.example.ModbusClient.dto.modbus;
 
 import lombok.Data;
 

@@ -46,6 +46,8 @@ public class MqttConfig {
         if (client.isConnected()) {
             log.info("Connected?");
 
+        } else {
+            log.info("Not Connected");
         }
 
         return client;

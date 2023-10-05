@@ -18,10 +18,10 @@ import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 @AllArgsConstructor
 public class CustomMqttCallback implements MqttCallback {
 
-//    private UpEventService upEventService;
     private MqttClient client;
     private String topic;
     private final MqttPayloadMap mqttPayloadMap;
+
     @Override
     public void disconnected(MqttDisconnectResponse disconnectResponse) {
         log.error("Mqtt Broker is disconnected: {}", disconnectResponse.getException().getMessage());
@@ -40,12 +40,12 @@ public class CustomMqttCallback implements MqttCallback {
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
 
+        log.info("message arrived");
         MqttMessageParser messageParser = new MqttMessageParser();
         DataModel parse = messageParser.parse(message);
 
-        boolean b = mqttPayloadMap.saveData(parse);
-        if (b) {
-            Thread.sleep(1000);
+        if (message.getPayload() != null) {
+            mqttPayloadMap.saveMap(parse);
         }
 
     }

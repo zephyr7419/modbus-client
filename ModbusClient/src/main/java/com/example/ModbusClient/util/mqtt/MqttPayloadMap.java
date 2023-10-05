@@ -1,8 +1,8 @@
 package com.example.ModbusClient.util.mqtt;
 
+import com.example.ModbusClient.dto.Data;
 import com.example.ModbusClient.dto.DataModel;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -13,27 +13,40 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class MqttPayloadMap {
 
-    private final Map<String, Object> resultMap = new ConcurrentHashMap<>();
-    private final CompletableFuture<DataModel> mqttMessageFuture = new CompletableFuture<>();
+    private Map<String, Object> resultMap = new ConcurrentHashMap<>();
+    private CompletableFuture<DataModel> mqttMessageFuture = new CompletableFuture<>();
 
-    public boolean saveData(DataModel dataModel) {
-        log.info("here message");
-        return mqttMessageFuture.complete(dataModel);
-    }
-
-    public CompletableFuture<DataModel> waitForMqttMessageAsync() {
-        return mqttMessageFuture;
-    }
-
-    public void savePayload(DataModel dataModel) {
-        resultMap.put("dateModel", dataModel);
+    public void saveMap(DataModel dataModel) {
+        resultMap.put("dataModel", dataModel);
+//        log.info("resultMap: {}", resultMap.get("dataModel"));
     }
 
     public Map<String, Object> getResultMap() {
-        return resultMap;
+//        log.info("resultMap2: {}", resultMap.get("dataModel"));
+
+        Map<String, Object> newMap = new ConcurrentHashMap<>(resultMap);
+//        log.info("newMap: {}", newMap.get("dataModel"));
+        return newMap;
     }
 
-    public void clearResultMap() {
-        resultMap.clear();
+    public void saveData(DataModel dataModel) {
+        resultMap.put("dataModel", dataModel);
     }
+
+    public CompletableFuture<DataModel> waitForMqttMessageAsync() {
+//        CompletableFuture<DataModel> currentFuture = mqttMessageFuture;
+        CompletableFuture<DataModel> newFuture =  new CompletableFuture<>();
+        DataModel latestData = (DataModel) resultMap.get("dataModel");
+
+        if (latestData != null) {
+            newFuture.complete(latestData);
+        } else {
+            mqttMessageFuture.thenRunAsync(() -> newFuture.complete(mqttMessageFuture.join()));
+        }
+
+        mqttMessageFuture = new CompletableFuture<>();
+        return newFuture;
+    }
+
+
 }

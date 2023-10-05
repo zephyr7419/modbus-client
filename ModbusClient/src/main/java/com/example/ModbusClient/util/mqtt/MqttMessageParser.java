@@ -19,7 +19,7 @@ public class MqttMessageParser {
 
         dataModel = gson.fromJson(decodedString, DataModel.class);
 
-        log.info("decoded message: {}", dataModel.toString());
+//        log.info("decoded message: {}", dataModel.toString());
         return dataModel;
     }
 

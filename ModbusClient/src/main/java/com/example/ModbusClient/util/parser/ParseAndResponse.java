@@ -1,4 +1,4 @@
-package com.example.ModbusClient.config.netty;
+package com.example.ModbusClient.util.parser;
 
 import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
@@ -21,12 +21,17 @@ public class ParseAndResponse {
         byte funcCode = response[1];
         byte byteCount = response[2];
 
-        if (funcCode == 16) {
+        if (funcCode == 6) {
             Map<String, Object> fields = new HashMap<>();
-            fields.put("slaveId", 1);
+            fields.put("slaveId", slaveId);
             fields.put("funcCode", funcCode);
-            fields.put("startAddr", response[2]);
-            fields.put("NoOfReg", response[3]);
+            fields.put("startAddrHi", response[2]);
+            fields.put("startAddrLo", response[3]);
+            byte hi = response[4];
+            byte lo = response[5];
+            int value = ((hi & 0xFF) << 8) | (lo & 0xFF);
+
+            fields.put("value", value);
 
             return fields;
 
@@ -159,7 +164,7 @@ public class ParseAndResponse {
     private String formatData2(int dataStartIndex, int value) {
         switch (dataStartIndex) {
             case 3 -> {
-                return String.valueOf((value * 0.01));
+                return String.valueOf((value * 0.0166667) / 60);
             }
             default -> {
                 return Integer.toHexString(value);

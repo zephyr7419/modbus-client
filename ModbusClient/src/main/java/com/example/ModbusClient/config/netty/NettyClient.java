@@ -1,9 +1,8 @@
 package com.example.ModbusClient.config.netty;
 
 import com.example.ModbusClient.config.ServerConfig;
-import com.example.ModbusClient.entity.modbus.ServerInfo;
-import com.example.ModbusClient.service.ModbusServiceTest;
-import com.example.ModbusClient.service.MqttConvertTCP;
+import com.example.ModbusClient.dto.modbus.ServerInfo;
+import com.example.ModbusClient.service.modbus.ModbusService;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -11,8 +10,6 @@ import io.netty.channel.ChannelFutureListener;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -28,8 +25,7 @@ public class NettyClient {
     private final Bootstrap bootstrap;
     private Channel channel;
     private final ServerConfig serverConfig;
-    private final ModbusServiceTest modbusService;
-
+    private final ModbusService modbusService;
 
     public void start() {
         List<ServerInfo> servers = serverConfig.getServerList();

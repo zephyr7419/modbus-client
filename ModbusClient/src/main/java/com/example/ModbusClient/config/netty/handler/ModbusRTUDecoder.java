@@ -1,4 +1,4 @@
-package com.example.ModbusClient.config.netty;
+package com.example.ModbusClient.config.netty.handler;
 
 import com.example.ModbusClient.util.InfluxManager;
 import io.netty.buffer.ByteBuf;

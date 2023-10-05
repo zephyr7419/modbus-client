@@ -1,7 +1,7 @@
 package com.example.ModbusClient.util.modbus;
 
-import com.example.ModbusClient.entity.modbus.ReadRequestParameters;
-import com.example.ModbusClient.entity.modbus.WriteRequestParameters;
+import com.example.ModbusClient.dto.modbus.ReadRequestParameters;
+import com.example.ModbusClient.dto.modbus.WriteRequestParameters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.function.Function;
 
-import static com.example.ModbusClient.config.netty.ParseAndResponse.byteArrayToHexString;
+import static com.example.ModbusClient.util.parser.ParseAndResponse.byteArrayToHexString;
 
 @Slf4j
 @Component
@@ -44,8 +44,9 @@ public class ModbusProtocol {
         buffer.put((byte) 0x06);
         buffer.put((byte) ((writeRequestParameters.getStartAddress() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getStartAddress()  & 0xFF));
-        buffer.put((byte) ((writeRequestParameters.getValue() >> 8) & 0xFF));
-        buffer.put((byte) (writeRequestParameters.getValue()  & 0xFF));
+        long value = Double.doubleToLongBits(writeRequestParameters.getValue());
+        buffer.put((byte) ((value >> 8) & 0xFF));
+        buffer.put((byte) (value & 0xFF));
 //        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));

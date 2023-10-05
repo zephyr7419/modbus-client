@@ -1,5 +1,7 @@
-package com.example.ModbusClient.config.netty;
+package com.example.ModbusClient.config.netty.handler;
 
+import com.example.ModbusClient.config.netty.handler.ModbusRTUDecoder;
+import com.example.ModbusClient.config.netty.handler.ModbusRTUEncoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -15,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
 //    private final HexProtocolClientHandler handler;
-    private final TestHexProtocolClientHandler handler;
+    private final HexProtocolClientHandler handler;
 
     @Override
     protected void initChannel(@NotNull SocketChannel ch) throws Exception {
@@ -23,7 +25,7 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
         ModbusRTUDecoder decoder = new ModbusRTUDecoder();
         ModbusRTUEncoder encoder = new ModbusRTUEncoder();
-        pipeline.addLast(new ReadTimeoutHandler(25, TimeUnit.SECONDS));
+        pipeline.addLast(new ReadTimeoutHandler(35, TimeUnit.SECONDS));
         pipeline.addLast(decoder, encoder, handler);
     }
 }
