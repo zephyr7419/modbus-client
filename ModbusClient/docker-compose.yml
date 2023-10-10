@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  springboot-hgf:
+    image: hyuk12/hgf-springboot:v1
+    container_name: hgf-springboot
+    ports:
+      - "8082:8082"
+    command: ["java", "-jar", "app.jar", "--spring.config.location=file:/config/application.yml"]
+    volumes:
+      - "./application.yml:/config/application.yml"
+      - "./hosts:/etc/hosts"
+
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    command: [ "mosquitto", "-c", "/mosquitto/config/mosquitto.conf" ]
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf

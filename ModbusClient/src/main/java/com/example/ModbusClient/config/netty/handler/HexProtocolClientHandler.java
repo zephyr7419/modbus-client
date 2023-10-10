@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.ReadTimeoutException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -12,17 +13,13 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 @ChannelHandler.Sharable
 public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ModbusService modbusService;
 
     private long startTime;
-
-    public HexProtocolClientHandler(ModbusService modbusService) {
-        this.modbusService = modbusService;
-
-    }
 
     @Override
     public void channelActive(@NotNull ChannelHandlerContext ctx) throws Exception {
@@ -38,10 +35,13 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) throws Exception {
+        Thread.sleep(5);
         byte[] response = (byte[]) msg;
 
         if (response[1] == 6) {
+            log.info("쓰기 후 정보 읽기");
             startTime = System.currentTimeMillis();
+//            Thread.sleep(5);
             modbusService.writeResponseParsing(response, ctx);
             long endTime = System.currentTimeMillis();
             long elapsedTime = endTime - startTime;
@@ -49,6 +49,7 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
         }else if (response[2] == 4) {
             startTime = System.currentTimeMillis();
+//            Thread.sleep(5);
             modbusService.onSecondResponseReceived(response);
 
             long endTime = System.currentTimeMillis();
@@ -57,6 +58,7 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
         } else if (response[2] == 8) {
             startTime = System.currentTimeMillis();
+//            Thread.sleep(5);
             modbusService.onThirdResponseReceived(response, ctx);
 
             long endTime = System.currentTimeMillis();
@@ -64,6 +66,7 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
             log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
         } else if (response[2] == 16){
             startTime = System.currentTimeMillis();
+//            Thread.sleep(5);
             modbusService.onFirstResponseReceived(response, ctx);
             long endTime = System.currentTimeMillis();
             long elapsedTime = endTime - startTime;

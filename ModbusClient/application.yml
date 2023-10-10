@@ -11,24 +11,14 @@ modbus:
   read-requests:
     - start-address: 0x0006
       quantity: 0x008
-    - start-address: 0x0004
+    - start-address: 0x0380
       quantity: 0x0002
     - start-address: 0x000D
       quantity: 0x0004
-  write-requests:
-    - parameter-count: 2
-      start-address: 0x1100
-      value: 60.0
-      values:
-        - 60.0
-        - 0
-#    - parameter-count: 2
+
 
 mqtt:
   server-url: tcp://mqtt-broker:1883
-  ca-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/ca.pem
-  client-crt-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/client/client.pem
-  client-key-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/client/client-key.pem
   client-id: zephyr
   application-id: 4
 
@@ -47,5 +37,4 @@ spring:
     bucket: modbus
     measurement: status
     token: 0FQPbYlJ1rqHKpOyFxEWFn1bJ2VwigmTxJFry25I-zkeCaNIKF0J-xMunZBrHBLTx0H3mlzk09ov93qtOTpCBA==
-  port:
 

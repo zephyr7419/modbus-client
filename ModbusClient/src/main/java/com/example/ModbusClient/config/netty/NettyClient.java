@@ -46,13 +46,20 @@ public class NettyClient {
                 modbusService.startScheduling();
             } else {
                 log.error("Failed to server: {}:{}", host, port);
-                channel.closeFuture().addListener((ChannelFutureListener) future1 -> {
-                    log.warn("Connection closed. Attempting to reconnect...");
-                    attemptReconnect();
-                    if (future1.isSuccess()) {
+                try {
+                    channel.closeFuture().addListener((ChannelFutureListener) future1 -> {
+                        if (this.channel == null) {
+                            log.warn("Connection closed. Attempting to reconnect...");
+                            attemptReconnect();
+                            if (future1.isSuccess()) {
 //                        modbusService.heartbeatRequest();
-                    }
-                });
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    log.error("Connection failed: {}", e.getMessage());
+                }
+
             }
         });
 

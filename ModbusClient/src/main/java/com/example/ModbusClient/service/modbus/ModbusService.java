@@ -55,17 +55,17 @@ public class ModbusService {
         scheduler.scheduleAtFixedRate(this::firstSchedule, 0, 60, TimeUnit.SECONDS);
     }
 
+    @Scheduled(fixedRate = 60000)
     public void firstSchedule() {
         try {
 
             log.info("첫 스케쥴 시작");
-//            secondSchedule();
             request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
 
             scheduler.schedule(() -> request.sendSecondRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 10, TimeUnit.SECONDS);
             scheduler.schedule(() -> request.sendThirdRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 20, TimeUnit.SECONDS);
             scheduler.schedule(() -> request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 30, TimeUnit.SECONDS);
-            scheduler.schedule(() -> request.secondSchedule(serversOrderMap, modbusProtocol, mqttConvertTCP.getResultMap(), tcp6266), 40, TimeUnit.SECONDS);
+            scheduler.schedule(() -> request.secondSchedule(serversOrderMap, modbusProtocol, payloadMap, tcp6266), 35, TimeUnit.SECONDS);
 
         } catch (Exception e) {
             log.error("schedule is error: {}", e.getMessage());
@@ -73,14 +73,13 @@ public class ModbusService {
 
     }
 
-    @Scheduled(fixedRate = 35000)
+    @Scheduled(fixedRate = 60000)
     private void heartbeatMqttSubscribe() {
         Map<String, Object> resultMap = mqttConvertTCP.getResultMap();
         payloadMap.putAll(resultMap);
         resultMap.clear();
         log.info("payloadMap: {}", payloadMap.get("dataModel"));
     }
-
 
     /**
      * 서버 연결이 추가 될 때 연결 한 server 를 추가
@@ -111,7 +110,7 @@ public class ModbusService {
     }
 
     public BitVector getTcp6266Bit() {
-        return tcp6266.readDoCoilValues();
+        return tcp6266.readDiCoilValues();
     }
 
     private List<BitVector> connectAndCheckCoilValues() {
@@ -149,6 +148,9 @@ public class ModbusService {
 
         firstResponse.set(response);
         Thread.sleep(200);
+        List<BitVector> bitVectors = connectAndCheckCoilValues();
+        BitVector diVector = bitVectors.get(0);
+        boolean outFanOn = diVector.getBit(1);
         ParseAndResponse parseAndResponse = new ParseAndResponse();
         Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(firstResponse.getAndSet(null));
 
@@ -160,18 +162,15 @@ public class ModbusService {
                 .port(socketAddress.getPort())
                 .build();
 
-
         String status = (String) stringObjectMap.get("Operation Status");
         String[] splitStatus = status.split(",");
 
-        JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(stringObjectMap, splitStatus);
+        JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(stringObjectMap, splitStatus, outFanOn);
 
         Map<String, Object> saveData = new HashMap<>(stringObjectMap);
         saveData.put("deviceIP", device1.getHost());
         saveData.put("devicePort", device1.getPort());
         influxManager.saveDataToInfluxDB(saveData);
-
-//        handleScheduleUpdate(device1, stringObjectMap);
 
         downEventService.sendDownLinkEvent(device1, jsonObject);
         log.info("first response complete!!");
@@ -195,8 +194,8 @@ public class ModbusService {
         Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(data);
 
         int value = (int) stringObjectMap.get("value");
-        double hz_sv = (value * 0.0166667) / 60;
 
+        log.info("hz_sv: {}", value);
         JsonObject jsonObject = new JsonObject();
 
         InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
@@ -207,23 +206,9 @@ public class ModbusService {
                 .port(socketAddress.getPort())
                 .build();
 
-        jsonObject.addProperty("HZ_SV", hz_sv);
+        jsonObject.addProperty("HZ_SV", value);
         jsonObject.addProperty("FAN_ON", !fanOn ? 0 : 1);
         downEventService.sendDownLinkEvent(device1, jsonObject);
-    }
-
-    /**
-     * 응답받은 데이터를 파싱한 Map 을 base64 형식으로 변환
-     */
-    private String convertMapToJsonAndEncodeBase64(JsonObject jsonObject) {
-        String jsonData = String.valueOf(jsonObject);
-        log.info("jsonData: {}", jsonData);
-
-        // JSON 문자열을 바이트 배열로 변환한 후 Base64로 인코딩
-        byte[] jsonDataBytes = jsonData.getBytes();
-        byte[] base64Data = Base64.getEncoder().encode(jsonDataBytes);
-
-        return new String(base64Data);
     }
 
     public void onThirdResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
@@ -232,8 +217,7 @@ public class ModbusService {
         ParseAndResponse parseAndResponse = new ParseAndResponse();
         List<BitVector> bitVectors = connectAndCheckCoilValues();
         BitVector diVector = bitVectors.get(0);
-        BitVector doVector = bitVectors.get(1);
-
+        boolean outFanOn = diVector.getBit(1);
 
         Map<String, Object> parsed = parseAndResponse.parseAndLogResponse(secondResponse.getAndSet(null));
         Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(thirdResponse.getAndSet(null));
@@ -246,13 +230,10 @@ public class ModbusService {
         String targetFrequency = (String) parsed.get("Target Frequency");
 
         JsonObject jsonObject = new JsonObject();
-        boolean inFanOn = diVector.getBit(0);
-//        boolean inRemote = diVector.getBit(1);
-        boolean outFanOn = doVector.getBit(0);
-//        boolean outRemote = doVector.getBit(1);
+
         jsonObject.addProperty("HZ_PV", targetFrequency);
         jsonObject.addProperty("FAN_ON", !outFanOn ? 0 : 1);
-        jsonObject.addProperty("REMOTE", splitStatus[0].equals("HAND") ? 0: 1);
+        jsonObject.addProperty("REMOTE", splitStatus[0].equals("HAND") ? 0 : 1);
 
         log.info("target frequency: {}", targetFrequency);
         InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
@@ -272,15 +253,18 @@ public class ModbusService {
 
     }
 
-//    private void getPayloadData() {
-//        CompletableFuture<DataModel> data = mqttConvertTCP.getData();
-//        DataModel join = data.join();
+
+//    /**
+//     * 응답받은 데이터를 파싱한 Map 을 base64 형식으로 변환
+//     */
+//    private String convertMapToJsonAndEncodeBase64(JsonObject jsonObject) {
+//        String jsonData = String.valueOf(jsonObject);
+//        log.info("jsonData: {}", jsonData);
 //
-//        if (!data.isDone()) {
-//            return;
-//        } else {
-//            dataModelAtomicReference.set(join);
-//        }
+//        // JSON 문자열을 바이트 배열로 변환한 후 Base64로 인코딩
+//        byte[] jsonDataBytes = jsonData.getBytes();
+//        byte[] base64Data = Base64.getEncoder().encode(jsonDataBytes);
 //
+//        return new String(base64Data);
 //    }
 }

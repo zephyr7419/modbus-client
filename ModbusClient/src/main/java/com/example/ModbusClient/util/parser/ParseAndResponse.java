@@ -139,7 +139,7 @@ public class ParseAndResponse {
         });
     }
 
-    public JsonObject mqttMessageToParsing(Map<String, Object> stringObjectMap, String[] statusArray) {
+    public JsonObject mqttMessageToParsing(Map<String, Object> stringObjectMap, String[] statusArray, boolean fanOn) {
         JsonObject json = new JsonObject();
         json.addProperty("FWD_RUN_ST", statusArray[3].equals("True"));
         json.addProperty("REV_RUN_ST", statusArray[2].equals("True"));
@@ -152,7 +152,7 @@ public class ParseAndResponse {
         json.addProperty("OUT_V", (String) stringObjectMap.get("Output Voltage"));
         json.addProperty("DC_LINK_V", (String) stringObjectMap.get("DC Link Voltage"));
         json.addProperty("KW", (String) stringObjectMap.get("Output Kw"));
-        json.addProperty("INV_POWER_ST", (String) stringObjectMap.get("Deceleration Time"));
+        json.addProperty("INV_POWER_ST", fanOn);
         return json;
     }
 
@@ -164,7 +164,7 @@ public class ParseAndResponse {
     private String formatData2(int dataStartIndex, int value) {
         switch (dataStartIndex) {
             case 3 -> {
-                return String.valueOf((value * 0.0166667) / 60);
+                return String.valueOf(value * 0.1);
             }
             default -> {
                 return Integer.toHexString(value);

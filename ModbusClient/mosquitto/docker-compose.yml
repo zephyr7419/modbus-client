@@ -1,0 +1,15 @@
+version: '3'
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    networks:
+      - my-network
+    command: [ "mosquitto", "-c", "/mosquitto/config/mosquitto.conf" ]
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+networks:
+  my-network:

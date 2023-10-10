@@ -12,4 +12,5 @@ import java.util.List;
 @ConfigurationProperties(prefix = "modbus")
 public class ModbusRequestProperties {
     private List<ReadRequestParameters> readRequests;
+    private List<WriteRequestParameters> writeRequests;
 }

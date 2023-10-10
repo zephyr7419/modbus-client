@@ -38,25 +38,33 @@ public class ModbusProtocol {
     };
 
     public Function<WriteRequestParameters, byte[]> getWriteRequest = writeRequestParameters -> {
+//        ByteBuffer buffer = ByteBuffer.allocate(7 + writeRequestParameters.getParameterCount() * 2);
         ByteBuffer buffer = ByteBuffer.allocate(6);
         buffer.order(ByteOrder.BIG_ENDIAN);
         buffer.put((byte) 1);
         buffer.put((byte) 0x06);
+        log.info("address: {}", writeRequestParameters.getStartAddress());
         buffer.put((byte) ((writeRequestParameters.getStartAddress() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getStartAddress()  & 0xFF));
-        long value = Double.doubleToLongBits(writeRequestParameters.getValue());
+        Integer value = (int) writeRequestParameters.getValue();
         buffer.put((byte) ((value >> 8) & 0xFF));
         buffer.put((byte) (value & 0xFF));
 //        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));
-
-//        for (int value : writeRequestParameters.getValues()) {
-//            buffer.put((byte) ((value >> 8) & 0xFF));
-//            buffer.put((byte) (value & 0xFF));
+//
+//        for (double value : writeRequestParameters.getValues()) {
+//
+//            long valueL = Double.doubleToLongBits(value);
+//            buffer.put((byte) ((valueL >> 8) & 0xFF));
+//            buffer.put((byte) (valueL & 0xFF));
 //        }
 
+        log.info("pre buffer: {}", byteArrayToHexString(buffer.array()));
+
         byte[] bytes = calculateCRC16Modbus(buffer.array());
+        log.info(" 쓰기 제어 들어오는가요?");
+//        ByteBuffer finalBuffer = ByteBuffer.allocate(9 + writeRequestParameters.getParameterCount() * 2);
         ByteBuffer finalBuffer = ByteBuffer.allocate(8);
         finalBuffer.order(ByteOrder.BIG_ENDIAN);
         finalBuffer.put(buffer.array());

@@ -25,6 +25,7 @@ public class MqttPayloadMap {
 //        log.info("resultMap2: {}", resultMap.get("dataModel"));
 
         Map<String, Object> newMap = new ConcurrentHashMap<>(resultMap);
+        resultMap.clear();
 //        log.info("newMap: {}", newMap.get("dataModel"));
         return newMap;
     }

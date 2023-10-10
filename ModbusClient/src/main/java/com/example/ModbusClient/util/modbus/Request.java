@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static com.example.ModbusClient.util.parser.ParseAndResponse.byteArrayToHexString;
 
@@ -83,12 +82,11 @@ public class Request {
 //                log.info("resultMap:{} ", resultMap.get("dataModel"));
                 if (resultMap != null) {
                     log.info("resultMap:{} ", resultMap.get("dataModel"));
-                    Map<String, Object> payloadMap = new ConcurrentHashMap<>(resultMap);
-                    log.info("join: {}", payloadMap.get("dataModel"));
-                    DataModel joinMap = (DataModel) payloadMap.get("dataModel");
+//                    Map<String, Object> payloadMap = new ConcurrentHashMap<>(resultMap);
+//                    log.info("join: {}", payloadMap.get("dataModel"));
+                    DataModel joinMap = (DataModel) resultMap.get("dataModel");
                     sendMqttRequest(ctx, tcp6266, joinMap, modbusProtocol);
-                    log.info("joinMap: {}", joinMap.getData().toString());
-                    log.info("data : {}", joinMap);
+                    resultMap.clear();
                 } else {
                     log.info("Not available Data");
                 }
@@ -120,12 +118,12 @@ public class Request {
 
         tcp6266.connect();
         if (dataModel != null) {
-            int hzSv = Integer.parseInt(dataModel.getData().getHzSv());
+            Double hzSv = Double.parseDouble(dataModel.getData().getHzSv());
             int fanOn = dataModel.getData().getFanOn();
             String host = dataModel.getDeviceInfo().getHost();
             int port = dataModel.getDeviceInfo().getPort();
 
-            List<Integer> values = new ArrayList<>();
+            List<Double> values = new ArrayList<>();
             // 맞는지 정확히 할 필요 있음
             // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
             values.add(hzSv);
@@ -136,16 +134,9 @@ public class Request {
 
             log.info("여기까지는 진행함.");
 
-            for (int v : values) {
-
-                log.info("value: {}", v);
-            }
-
-            double rpm = (hzSv * 60) / 0.0166667;
-
             WriteRequestParameters build = WriteRequestParameters.builder()
-                    .startAddress(0x0380)
-                    .value(rpm)
+                    .startAddress(0x1100)
+                    .value(hzSv)
                     .build();
 
             ByteBuf request = Unpooled.buffer();
