@@ -44,6 +44,11 @@ public class NettyClient {
                 }
                 modbusService.addServer(channel);
                 modbusService.startScheduling();
+//                ByteBuf request = Unpooled.buffer();
+//                byte[] buffer = new byte[]{0x01, 0x06, 0x, 0x02, 0x00, 0x02, 0x04, 0x00, 0x32, 0x00, 0x64, 0x12, 0x02};
+//                ByteBuf buf = request.writeBytes(buffer);
+//                channel.writeAndFlush(buf);
+
             } else {
                 log.error("Failed to server: {}:{}", host, port);
                 try {

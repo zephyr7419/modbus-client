@@ -10,6 +10,6 @@ import java.util.List;
 public class WriteRequestParameters {
     private int parameterCount;
     private int startAddress;
-    private double value;
-    private List<Double> values;
+    private int value;
+    private List<Integer> values;
 }

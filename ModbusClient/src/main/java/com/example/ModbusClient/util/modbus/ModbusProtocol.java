@@ -46,18 +46,17 @@ public class ModbusProtocol {
         log.info("address: {}", writeRequestParameters.getStartAddress());
         buffer.put((byte) ((writeRequestParameters.getStartAddress() >> 8) & 0xFF));
         buffer.put((byte) (writeRequestParameters.getStartAddress()  & 0xFF));
-        Integer value = (int) writeRequestParameters.getValue();
-        buffer.put((byte) ((value >> 8) & 0xFF));
-        buffer.put((byte) (value & 0xFF));
+//        Integer value = (int) writeRequestParameters.getValue();
+        buffer.put((byte) ((writeRequestParameters.getValue() >> 8) & 0xFF));
+        buffer.put((byte) (writeRequestParameters.getValue() & 0xFF));
 //        buffer.put((byte) ((writeRequestParameters.getParameterCount() >> 8) & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() & 0xFF));
 //        buffer.put((byte) (writeRequestParameters.getParameterCount() * 2));
 //
-//        for (double value : writeRequestParameters.getValues()) {
-//
-//            long valueL = Double.doubleToLongBits(value);
-//            buffer.put((byte) ((valueL >> 8) & 0xFF));
-//            buffer.put((byte) (valueL & 0xFF));
+//        for (int value : writeRequestParameters.getValues()) {
+//            log.info("valueL: {}", value);
+//            buffer.put((byte) ((value >> 8) & 0xFF));
+//            buffer.put((byte) (value & 0xFF));
 //        }
 
         log.info("pre buffer: {}", byteArrayToHexString(buffer.array()));

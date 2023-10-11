@@ -50,22 +50,31 @@ public class ModbusService {
     private final DownEventService downEventService;
     private Map<String, Object> payloadMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private long startTime;
 
     public void startScheduling() {
         scheduler.scheduleAtFixedRate(this::firstSchedule, 0, 60, TimeUnit.SECONDS);
     }
 
-    @Scheduled(fixedRate = 60000)
+//    @Scheduled(fixedRate = 60000, initialDelay = 5)
     public void firstSchedule() {
         try {
 
             log.info("첫 스케쥴 시작");
+            startTime = System.currentTimeMillis();
             request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+            long endTime = System.currentTimeMillis();
+            log.info("첫번째 리퀘스트 시간: {}밀리초", endTime - startTime);
 
+            startTime = System.currentTimeMillis();
             scheduler.schedule(() -> request.sendSecondRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 10, TimeUnit.SECONDS);
+            endTime = System.currentTimeMillis();
+            log.info("두번째 리퀘스트 시간: {}밀리초", endTime - startTime);
+
+            startTime = System.currentTimeMillis();
             scheduler.schedule(() -> request.sendThirdRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 20, TimeUnit.SECONDS);
-            scheduler.schedule(() -> request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 30, TimeUnit.SECONDS);
-            scheduler.schedule(() -> request.secondSchedule(serversOrderMap, modbusProtocol, payloadMap, tcp6266), 35, TimeUnit.SECONDS);
+            endTime = System.currentTimeMillis();
+            log.info("세번째 리퀘스트 시간: {}밀리초", endTime - startTime);
 
         } catch (Exception e) {
             log.error("schedule is error: {}", e.getMessage());
@@ -73,12 +82,29 @@ public class ModbusService {
 
     }
 
-    @Scheduled(fixedRate = 60000)
-    private void heartbeatMqttSubscribe() {
+    @Scheduled(fixedRate = 60000, initialDelay = 30000)
+    private void secondSchedule() {
         Map<String, Object> resultMap = mqttConvertTCP.getResultMap();
         payloadMap.putAll(resultMap);
-        resultMap.clear();
+//        resultMap.clear();
         log.info("payloadMap: {}", payloadMap.get("dataModel"));
+        log.info("두번째 스케쥴 시작");
+
+        startTime = System.currentTimeMillis();
+        request.sendFirstRequest(serversOrderMap, modbusRequestProperties, modbusProtocol);
+        long endTime = System.currentTimeMillis();
+        log.info("두번째 스케쥴의 첫번째 리퀘스트 시작: {}밀리초", endTime - startTime);
+
+        startTime = System.currentTimeMillis();
+        scheduler.schedule(() -> request.sendSecondRequest(serversOrderMap, modbusRequestProperties, modbusProtocol), 10, TimeUnit.SECONDS);
+        endTime = System.currentTimeMillis();
+        log.info("두번째 스케쥴의 두번째 리퀘스트 시작: {}밀리초", endTime - startTime);
+
+        startTime = System.currentTimeMillis();
+        scheduler.schedule(() -> request.secondSchedule(serversOrderMap, modbusProtocol, payloadMap, tcp6266), 20, TimeUnit.SECONDS);
+        endTime = System.currentTimeMillis();
+        log.info("두번째 스케쥴의 세번째 리퀘스트 시작: {}밀리초", endTime - startTime);
+
     }
 
     /**
@@ -96,7 +122,7 @@ public class ModbusService {
 
     public void listClients() {
         if (serversOrderMap.isEmpty()) {
-            log.info("현재 연결된 server가 없습니다.");
+            log.info("현재 연결된 server 가 없습니다.");
             return;
         }
 
@@ -118,11 +144,11 @@ public class ModbusService {
         BitVector currentDiCoilValues = tcp6266.readDiCoilValues();
         BitVector currentDoCoilValues = tcp6266.readDoCoilValues();
 
-        BitVector diVector = changeCheck(currentDiCoilValues, previousDiCoilValues);
+//        BitVector diVector = changeCheck(currentDiCoilValues, previousDiCoilValues);
 
         BitVector doVector = changeCheck(currentDoCoilValues, previousDoCoilValues);
         List<BitVector> bitVectors = new ArrayList<>();
-        bitVectors.add(diVector);
+//        bitVectors.add(diVector);
         bitVectors.add(doVector);
         return bitVectors;
     }
@@ -132,7 +158,7 @@ public class ModbusService {
             for (int i = 0; i < currentDoCoilValues.size(); i++) {
                 boolean currentValue = currentDoCoilValues.getBit(i);
                 boolean previousValue = previousDoCoilValues.getBit(i);
-                log.info("current: {}", currentValue);
+                log.info("current: {}, {}", i, currentValue);
                 if (currentValue != previousValue) {
                     log.info("Coil {} value changed: {}", i, currentValue);
 
@@ -147,7 +173,7 @@ public class ModbusService {
     public void onFirstResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
 
         firstResponse.set(response);
-        Thread.sleep(200);
+        Thread.sleep(5);
         List<BitVector> bitVectors = connectAndCheckCoilValues();
         BitVector diVector = bitVectors.get(0);
         boolean outFanOn = diVector.getBit(1);
@@ -179,7 +205,7 @@ public class ModbusService {
 
     public void onSecondResponseReceived(byte[] response) throws InterruptedException {
         secondResponse.set(response);
-        Thread.sleep(200);
+        Thread.sleep(5);
 
         log.info("first response complete!!");
     }
@@ -213,7 +239,7 @@ public class ModbusService {
 
     public void onThirdResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
         thirdResponse.set(response);
-        Thread.sleep(200);
+        Thread.sleep(5);
         ParseAndResponse parseAndResponse = new ParseAndResponse();
         List<BitVector> bitVectors = connectAndCheckCoilValues();
         BitVector diVector = bitVectors.get(0);

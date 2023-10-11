@@ -67,7 +67,7 @@ public class MqttConfig {
 
         CustomMqttCallback customMqttCallback = new CustomMqttCallback(client, topic, mqttPayloadMap);
         client.setCallback(customMqttCallback);
-//        client.setTimeToWait(10000);
+        client.setTimeToWait(10000);
 
         if (client.isConnected()) {
             log.info("Connected?");

@@ -9,6 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
+import org.yaml.snakeyaml.util.ArrayUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static com.example.ModbusClient.util.parser.ParseAndResponse.byteArrayToHexString;
 
 
 @Slf4j
@@ -18,7 +25,7 @@ import org.springframework.stereotype.Component;
 public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ModbusService modbusService;
-
+    private List<Byte> accumulatedData = new ArrayList<>();
     private long startTime;
 
     @Override
@@ -38,39 +45,41 @@ public class HexProtocolClientHandler extends ChannelInboundHandlerAdapter {
         Thread.sleep(5);
         byte[] response = (byte[]) msg;
 
+        log.info("msg: {}", byteArrayToHexString(response));
+
         if (response[1] == 6) {
             log.info("쓰기 후 정보 읽기");
-            startTime = System.currentTimeMillis();
+//            startTime = System.currentTimeMillis();
 //            Thread.sleep(5);
             modbusService.writeResponseParsing(response, ctx);
-            long endTime = System.currentTimeMillis();
-            long elapsedTime = endTime - startTime;
-            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+//            long endTime = System.currentTimeMillis();
+//            long elapsedTime = endTime - startTime;
+//            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
 
         }else if (response[2] == 4) {
-            startTime = System.currentTimeMillis();
+//            startTime = System.currentTimeMillis();
 //            Thread.sleep(5);
             modbusService.onSecondResponseReceived(response);
 
-            long endTime = System.currentTimeMillis();
-            long elapsedTime = endTime - startTime;
-            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+//            long endTime = System.currentTimeMillis();
+//            long elapsedTime = endTime - startTime;
+//            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
 
         } else if (response[2] == 8) {
-            startTime = System.currentTimeMillis();
+//            startTime = System.currentTimeMillis();
 //            Thread.sleep(5);
             modbusService.onThirdResponseReceived(response, ctx);
 
-            long endTime = System.currentTimeMillis();
-            long elapsedTime = endTime - startTime;
-            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+//            long endTime = System.currentTimeMillis();
+//            long elapsedTime = endTime - startTime;
+//            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
         } else if (response[2] == 16){
-            startTime = System.currentTimeMillis();
+//            startTime = System.currentTimeMillis();
 //            Thread.sleep(5);
             modbusService.onFirstResponseReceived(response, ctx);
-            long endTime = System.currentTimeMillis();
-            long elapsedTime = endTime - startTime;
-            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
+//            long endTime = System.currentTimeMillis();
+//            long elapsedTime = endTime - startTime;
+//            log.info("작업 수행 시간 (밀리초): {}", elapsedTime);
         } else {
             log.info("알 수 없는 정보이다.");
 

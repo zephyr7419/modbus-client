@@ -18,9 +18,9 @@ modbus:
   write-requests:
     - parameter-count: 2
       start-address: 0x1100
-      value: 60.0
+      value: 60
       values:
-        - 60.0
+        - 60
         - 0
 #    - parameter-count: 2
 
@@ -32,11 +32,22 @@ mqtt:
   client-id: zephyr
   application-id: 4
 
+#mqtt:
+#  server-url: ssl://mqtt-broker:1883
+#  ca-file: /mosquitto/config/ssl/ca.pem
+#  client-crt-file: /mosquitto/config/ssl/client.pem
+#  client-key-file: /mosquitto/config/ssl/client-key.pem
+#  client-id: zephyr
+#  application-id: 4
+
 servers:
   server-list:
     - name: Server1
       host: 172.30.1.233
       port: 5300
+#    - name: Server2
+#      host: 172.30.1.5
+#      port: 5300
 
 spring:
   influxdb:

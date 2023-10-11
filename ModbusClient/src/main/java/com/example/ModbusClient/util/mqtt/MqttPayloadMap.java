@@ -18,7 +18,7 @@ public class MqttPayloadMap {
 
     public void saveMap(DataModel dataModel) {
         resultMap.put("dataModel", dataModel);
-//        log.info("resultMap: {}", resultMap.get("dataModel"));
+        log.info("resultMap: {}", resultMap.get("dataModel"));
     }
 
     public Map<String, Object> getResultMap() {

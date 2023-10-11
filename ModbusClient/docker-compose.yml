@@ -9,6 +9,9 @@ services:
     command: ["java", "-jar", "app.jar", "--spring.config.location=file:/config/application.yml"]
     volumes:
       - "./application.yml:/config/application.yml"
+      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/client/client.pem:/mosquitto/config/ssl/client.pem"
+      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/client/client-key.pem:/mosquitto/config/ssl/client-key.pem"
+      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/ca.pem:/mosquitto/config/ssl/ca.pem"
       - "./hosts:/etc/hosts"
 
   mqtt-broker:
@@ -18,4 +21,7 @@ services:
       - "1883:1883"
     command: [ "mosquitto", "-c", "/mosquitto/config/mosquitto.conf" ]
     volumes:
-      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - "./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf"
+      - "./mosquitto/config/ssl/server/server.pem:/mosquitto/config/ssl/server/server.pem"
+      - "./mosquitto/config/ssl/server/server-key.pem:/mosquitto/config/ssl/server/server-key.pem"
+      - "./mosquitto/config/ssl/ca.pem:/mosquitto/config/ssl/ca.pem"

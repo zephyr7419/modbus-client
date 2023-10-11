@@ -44,7 +44,10 @@ public class CustomMqttCallback implements MqttCallback {
         MqttMessageParser messageParser = new MqttMessageParser();
         DataModel parse = messageParser.parse(message);
 
+        log.info("payload: {}", message.getPayload() != null);
+
         if (message.getPayload() != null) {
+            log.info("진행 단계 1");
             mqttPayloadMap.saveMap(parse);
         }
 

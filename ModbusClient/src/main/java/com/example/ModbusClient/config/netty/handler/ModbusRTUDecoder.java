@@ -29,15 +29,26 @@ public class ModbusRTUDecoder extends ByteToMessageDecoder {
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         if (in.readableBytes() >= 8) {
-            int byteCount = in.getByte(2) & 0xFF;
-            if (in.readableBytes() >= byteCount + 5) {
-                ByteBuf response = in.readBytes(byteCount + 5);
+
+            int funcCode = in.getByte(1) & 0xFF;
+            if (funcCode == 6) {
+                ByteBuf response = in.readBytes(8);
                 byte[] responseData = new byte[response.readableBytes()];
                 response.readBytes(responseData);
-                log.info("responseData: {}", Arrays.toString(responseData));
                 out.add(responseData);
 
                 response.release();
+            } else {
+                int byteCount = in.getByte(2) & 0xFF;
+                if (in.readableBytes() >= byteCount + 5) {
+                    ByteBuf response = in.readBytes(byteCount + 5);
+                    byte[] responseData = new byte[response.readableBytes()];
+                    response.readBytes(responseData);
+                    log.info("responseData: {}", Arrays.toString(responseData));
+                    out.add(responseData);
+
+                    response.release();
+                }
             }
         }
     }

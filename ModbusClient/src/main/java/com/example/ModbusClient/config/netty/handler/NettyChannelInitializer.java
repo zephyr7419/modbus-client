@@ -25,7 +25,7 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
         ModbusRTUDecoder decoder = new ModbusRTUDecoder();
         ModbusRTUEncoder encoder = new ModbusRTUEncoder();
-        pipeline.addLast(new ReadTimeoutHandler(35, TimeUnit.SECONDS));
+        pipeline.addLast(new ReadTimeoutHandler(50, TimeUnit.SECONDS));
         pipeline.addLast(decoder, encoder, handler);
     }
 }

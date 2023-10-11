@@ -87,12 +87,10 @@ public class Request {
                     DataModel joinMap = (DataModel) resultMap.get("dataModel");
                     sendMqttRequest(ctx, tcp6266, joinMap, modbusProtocol);
                     resultMap.clear();
-                } else {
-                    log.info("Not available Data");
                 }
 
             } catch (Exception e) {
-                log.error("Not available Data");
+                log.error("Not available Data2");
             }
         }
     }
@@ -118,15 +116,16 @@ public class Request {
 
         tcp6266.connect();
         if (dataModel != null) {
-            Double hzSv = Double.parseDouble(dataModel.getData().getHzSv());
+            int hzSv = Integer.parseInt(dataModel.getData().getHzSv());
             int fanOn = dataModel.getData().getFanOn();
             String host = dataModel.getDeviceInfo().getHost();
             int port = dataModel.getDeviceInfo().getPort();
 
-            List<Double> values = new ArrayList<>();
+            List<Integer> values = new ArrayList<>();
             // 맞는지 정확히 할 필요 있음
             // 예상으로는 제어 중 운전관련 on/off 결과와 제어는 6266으로 할 가능성이 있어보인다. remote / local 상태도 마찬가지
             values.add(hzSv);
+            values.add(0);
 
             log.info("fanOn: {}", fanOn);
             log.info("hzSv: {}", hzSv);
@@ -135,7 +134,9 @@ public class Request {
             log.info("여기까지는 진행함.");
 
             WriteRequestParameters build = WriteRequestParameters.builder()
-                    .startAddress(0x1100)
+//                    .parameterCount(2)
+                    .startAddress(0x0004)
+//                    .values(values)
                     .value(hzSv)
                     .build();
 
