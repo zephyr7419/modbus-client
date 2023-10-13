@@ -21,14 +21,14 @@ public class InfluxManager {
     private WriteApiBlocking writeApi;
 
     @Value("${spring.influxdb.measurement}")
-    private String measurement;
+    private String defaultMeasurement;
 
     @PostConstruct
     public void init() {
         writeApi = influxDBClient.getWriteApiBlocking();
     }
 
-    public void saveDataToInfluxDB(Map<String, Object> data) {
+    public void saveDataToInfluxDB(String measurement, Map<String, Object> data) {
         Point point = Point.measurement(measurement).time(System.currentTimeMillis(), WritePrecision.MS);
 
         for (Map.Entry<String, Object> entry : data.entrySet()) {
@@ -42,5 +42,9 @@ public class InfluxManager {
 
         log.info("success!");
         writeApi.writePoint(point);
+    }
+
+    public void saveDataToInfluxDB(Map<String, Object> data) {
+        saveDataToInfluxDB(defaultMeasurement, data);
     }
 }

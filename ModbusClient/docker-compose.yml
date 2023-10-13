@@ -1,18 +1,18 @@
 version: '3.8'
 
 services:
-  springboot-hgf:
-    image: hyuk12/hgf-springboot:v1
-    container_name: hgf-springboot
-    ports:
-      - "8082:8082"
-    command: ["java", "-jar", "app.jar", "--spring.config.location=file:/config/application.yml"]
-    volumes:
-      - "./application.yml:/config/application.yml"
-      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/client/client.pem:/mosquitto/config/ssl/client.pem"
-      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/client/client-key.pem:/mosquitto/config/ssl/client-key.pem"
-      - "/Users/zephyr/Desktop/test_workspace/gas/ssl/ca.pem:/mosquitto/config/ssl/ca.pem"
-      - "./hosts:/etc/hosts"
+#  springboot-hgf:
+#    image: hyuk12/hgf-springboot:v1
+#    container_name: message-collector
+#    ports:
+#      - "8082:8082"
+#    command: ["java", "-jar", "app.jar", "--spring.config.location=file:/config/application.yml"]
+#    volumes:
+#      - "./application.yml:/config/application.yml"
+#      - "./mosquitto/config/ssl/client/client.pem:/mosquitto/config/ssl/client.pem"
+#      - "./mosquitto/config/ssl/client/client-key.pem:/mosquitto/config/ssl/client-key.pem"
+#      - "./mosquitto/config/ssl/ca.pem:/mosquitto/config/ssl/ca.pem"
+#      - "./hosts:/etc/hosts"
 
   mqtt-broker:
     image: eclipse-mosquitto:latest
@@ -25,3 +25,4 @@ services:
       - "./mosquitto/config/ssl/server/server.pem:/mosquitto/config/ssl/server/server.pem"
       - "./mosquitto/config/ssl/server/server-key.pem:/mosquitto/config/ssl/server/server-key.pem"
       - "./mosquitto/config/ssl/ca.pem:/mosquitto/config/ssl/ca.pem"
+      - "./mosquitto/config/ssl/mosquitto/config/aclfile:/mosquitto/config/ssl/mosquitto/config/aclfile"

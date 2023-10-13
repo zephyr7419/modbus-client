@@ -13,6 +13,6 @@ public class NettyApplicationStartupTask implements ApplicationListener<Applicat
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        client.start();
+//        client.start();
     }
 }

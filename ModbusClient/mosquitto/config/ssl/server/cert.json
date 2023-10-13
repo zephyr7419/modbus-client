@@ -1,0 +1,12 @@
+{
+  "CN": "mqtt-broker",
+  "hosts": [
+    "127.0.0.1",
+    "localhost",
+    "message-collector"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}

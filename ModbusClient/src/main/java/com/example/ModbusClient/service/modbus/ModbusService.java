@@ -179,7 +179,7 @@ public class ModbusService {
         boolean outFanOn = diVector.getBit(1);
         ParseAndResponse parseAndResponse = new ParseAndResponse();
         Map<String, Object> stringObjectMap = parseAndResponse.parseAndLogResponse(firstResponse.getAndSet(null));
-
+        Map<String, Object> infoMap = new HashMap<>();
         InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
 
         ServerInfo device1 = ServerInfo.builder()
@@ -194,11 +194,12 @@ public class ModbusService {
         JsonObject jsonObject = parseAndResponse.mqttMessageToParsing(stringObjectMap, splitStatus, outFanOn);
 
         Map<String, Object> saveData = new HashMap<>(stringObjectMap);
-        saveData.put("deviceIP", device1.getHost());
-        saveData.put("devicePort", device1.getPort());
-        influxManager.saveDataToInfluxDB(saveData);
+        infoMap.put("deviceIP", device1.getHost());
+        infoMap.put("devicePort", device1.getPort());
+        influxManager.saveDataToInfluxDB("info", infoMap);
+        influxManager.saveDataToInfluxDB("extra_status", saveData);
 
-        downEventService.sendDownLinkEvent(device1, jsonObject);
+        downEventService.sendDownLinkEvent(device1, jsonObject, "extra_status");
         log.info("first response complete!!");
 
     }
@@ -234,7 +235,7 @@ public class ModbusService {
 
         jsonObject.addProperty("HZ_SV", value);
         jsonObject.addProperty("FAN_ON", !fanOn ? 0 : 1);
-        downEventService.sendDownLinkEvent(device1, jsonObject);
+        downEventService.sendDownLinkEvent(device1, jsonObject, "control/response");
     }
 
     public void onThirdResponseReceived(byte[] response, ChannelHandlerContext ctx) throws InterruptedException {
@@ -262,35 +263,25 @@ public class ModbusService {
         jsonObject.addProperty("REMOTE", splitStatus[0].equals("HAND") ? 0 : 1);
 
         log.info("target frequency: {}", targetFrequency);
+        Map<String, Object> infoMap = new HashMap<>();
         InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
 
+        String ip = socketAddress.getAddress().getHostAddress();
+        int port = socketAddress.getPort();
         ServerInfo device1 = ServerInfo.builder()
-                .name("device1")
-                .host(socketAddress.getAddress().getHostAddress())
-                .port(socketAddress.getPort())
+                .name(ip + ":" + port)
+                .host(ip)
+                .port(port)
                 .build();
 
-        saveData.put("deviceIP", device1.getHost());
-        saveData.put("devicePort", device1.getPort());
+        infoMap.put("deviceIP", device1.getHost());
+        infoMap.put("devicePort", device1.getPort());
 
+        influxManager.saveDataToInfluxDB("info", infoMap);
         influxManager.saveDataToInfluxDB(saveData);
 
-        downEventService.sendDownLinkEvent(device1, jsonObject);
+        downEventService.sendDownLinkEvent(device1, jsonObject, "status");
 
     }
 
-
-//    /**
-//     * 응답받은 데이터를 파싱한 Map 을 base64 형식으로 변환
-//     */
-//    private String convertMapToJsonAndEncodeBase64(JsonObject jsonObject) {
-//        String jsonData = String.valueOf(jsonObject);
-//        log.info("jsonData: {}", jsonData);
-//
-//        // JSON 문자열을 바이트 배열로 변환한 후 Base64로 인코딩
-//        byte[] jsonDataBytes = jsonData.getBytes();
-//        byte[] base64Data = Base64.getEncoder().encode(jsonDataBytes);
-//
-//        return new String(base64Data);
-//    }
 }

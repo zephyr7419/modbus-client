@@ -19,7 +19,7 @@ public class DownEventService {
     @Lazy
     private final MqttClient mqttClient;
 
-    public void sendDownLinkEvent(ServerInfo serverInfo, JsonObject data) {
+    public void sendDownLinkEvent(ServerInfo serverInfo, JsonObject data, String topic) {
         MqttMessage message = new MqttMessage();
         JsonObject deviceInfo = new JsonObject();
         JsonObject mqttMessage = new JsonObject();
@@ -27,8 +27,8 @@ public class DownEventService {
         deviceInfo.addProperty("host", serverInfo.getHost());
         deviceInfo.addProperty("port", serverInfo.getPort());
 
-        mqttMessage.add("deviceInfo", deviceInfo);
-        mqttMessage.add("data", data);
+        mqttMessage.add("Header", deviceInfo);
+        mqttMessage.add("Body", data);
 
         byte[] s = convertMapToJsonAndEncodeBase64(mqttMessage);
 
@@ -39,7 +39,13 @@ public class DownEventService {
             boolean connected = mqttClient.isConnected();
             log.info("connected: {}", connected);
             if (connected) {
-                mqttClient.publish("application/test", message);
+                if (topic.equals("status")) {
+                    mqttClient.publish("gasfan/" + serverInfo.getHost() + ":" + serverInfo.getPort() + "/event/" + topic, message);
+                } else if (topic.equals("extra_status")) {
+                    mqttClient.publish("gasfan/" + serverInfo.getHost() + ":" + serverInfo.getPort() + "/event/" + topic, message);
+                } else {
+                    mqttClient.publish("gasfan/" + serverInfo.getHost() + ":" + serverInfo.getPort() + "/event/" + topic, message);
+                }
             } else {
                 mqttClient.reconnect();
                 mqttClient.publish("application/test", message);

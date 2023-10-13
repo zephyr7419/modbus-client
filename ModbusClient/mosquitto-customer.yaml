@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: app
+    app.kubernetes.io/name: mosquitto-customer
+  name: mosquitto-customer
+  namespace: dsme-fan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: app
+      app.kubernetes.io/name: mosquitto-customer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: app
+        app.kubernetes.io/name: mosquitto-customer
+    spec:
+      containers:
+        - image: eclipse-mosquitto:2
+          name: main
+          volumeMounts:
+            - mountPath: /mosquitto/config/mosquitto.conf
+              name: config
+              readOnly: true
+              subPath: mosquitto.conf
+            - mountPath: /mosquitto/config/cafile
+              name: secret
+              readOnly: true
+              subPath: cafile
+            - mountPath: /mosquitto/config/certfile
+              name: secret
+              readOnly: true
+              subPath: certfile
+            - mountPath: /mosquitto/config/keyfile
+              name: secret
+              readOnly: true
+              subPath: keyfile
+            - mountPath: /mosquitto/config/aclfile
+              name: secret
+              readOnly: true
+              subPath: aclfile
+            - mountPath: /mosquitto/config/password_file
+              name: secret
+              readOnly: true
+              subPath: password_file
+            - mountPath: /mosquitto/config/aclfile_1883
+              name: secret
+              readOnly: true
+              subPath: aclfile_1883
+      volumes:
+        - configMap:
+            items:
+              - key: mosquitto.conf
+                path: mosquitto.conf
+            name: mosquitto-customer
+          name: config
+        - name: secret
+          secret:
+            items:
+              - key: cafile
+                path: cafile
+              - key: certfile
+                path: certfile
+              - key: keyfile
+                path: keyfile
+              - key: aclfile
+                path: aclfile
+              - key: password_file
+                path: password_file
+              - key: aclfile_1883
+                path: aclfile_1883
+            secretName: mosquitto-customer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto-customer
+  namespace: dsme-fan
+spec:
+  ports:
+    - name: mqtts
+      port: 8883
+    - name: mqtt
+      port: 1883
+  selector:
+    app.kubernetes.io/component: app
+    app.kubernetes.io/name: mosquitto-customer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-customer
+  namespace: dsme-fan
+data:
+  mosquitto.conf: |-
+    # =================================================================
+    # General configuration
+    # =================================================================
+
+    retain_available false
+
+    # Listener간의 서로 다른 인증방식을 사용하기 위한 세팅
+    per_listener_settings true
+
+    # false 일 경우 클라이언트로부터 명시적으로 clientid 입력을 요구한다.
+    # true 일 경우 clientid를 입력하지 않으면 mosquitto에서 자동으로 UUID로 clientid를 생성해준다. (default)
+    # allow_zero_length_clientid false
+
+    # =================================================================
+    # Listener - secure
+    # =================================================================
+
+    listener 8883
+    socket_domain ipv4
+    protocol mqtt
+
+    cafile /mosquitto/config/cafile
+    certfile /mosquitto/config/certfile
+    keyfile /mosquitto/config/keyfile
+
+    require_certificate true
+    use_identity_as_username true
+    acl_file /mosquitto/config/aclfile
+
+    max_qos 1
+
+    # Persistence
+    persistence false
+
+    # Logging
+    log_dest stdout
+    log_type debug
+    log_type all
+
+    # =================================================================
+    # Listener - insecure
+    # =================================================================
+
+    listener 1883
+    socket_domain ipv4
+    protocol mqtt
+    password_file /mosquitto/config/password_file
+    use_identity_as_username true
+    acl_file /mosquitto/config/aclfile_1883
+    max_qos 1
+
+    # Persistence
+    persistence false
+
+    # Logging
+    log_dest stdout
+    log_type debug
+    log_type all
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mosquitto-customer
+  namespace: dsme-fan
+data:
+  aclfile: dXNlciBtZXNzYWdlLXRyYW5zZm9ybWVyCnRvcGljIHdyaXRlICMKdG9waWMgcmVhZCAgIwoKdXNlciBrZXB3YXJlCnRvcGljIHdyaXRlICMKdG9waWMgcmVhZCAgIwoKdXNlciBkc21lLWlvdAp0b3BpYyB3cml0ZSAjCnRvcGljIHJlYWQgICMKCnVzZXIgbWVzc2FnZS1jb2xsZWN0b3IKdG9waWMgcmVhZCAgIw==
+  aclfile_1883: dXNlciBtZXNzYWdlLXRyYW5zZm9ybWVyCnRvcGljIHdyaXRlICMKCnVzZXIgdGhpbmd3b3J4CnRvcGljIHdyaXRlICMKdG9waWMgcmVhZCAgIwoKdXNlciBtdXNtYS10ZXN0CnRvcGljIHdyaXRlICMKdG9waWMgcmVhZCAgIwoKdXNlciBkc21lLWlvdAp0b3BpYyB3cml0ZSAjCnRvcGljIHJlYWQgICM=
+  cafile: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURkakNDQWw2Z0F3SUJBZ0lVYmRyd1hDVE9RRytrYjBMcG1kdVhvZ0xXNFNrd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1V6RUxNQWtHQTFVRUJoTUNTMUl4RGpBTUJnTlZCQWdUQlVKMWMyRnVNUlF3RWdZRFZRUUhFd3RJWVdWMQpibVJoWlMxbmRURU9NQXdHQTFVRUNoTUZUWFZ6YldFeERqQU1CZ05WQkFNVEJVMTFjMjFoTUI0WERUSXhNREl3Ck1qQTBNRGN3TUZvWERUSTJNREl3TVRBME1EY3dNRm93VXpFTE1Ba0dBMVVFQmhNQ1MxSXhEakFNQmdOVkJBZ1QKQlVKMWMyRnVNUlF3RWdZRFZRUUhFd3RJWVdWMWJtUmhaUzFuZFRFT01Bd0dBMVVFQ2hNRlRYVnpiV0V4RGpBTQpCZ05WQkFNVEJVMTFjMjFoTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFuMUJsCnhVTHR6VE5kNkE0Q2NaTG5FbmJtSGNSWkJ0VGJLMzlZbHdkQ2VrS3FTdlhPRnhSd0JHV0lEcFVXZ20zRDRNMHUKVUxXRTYrSDRtMDhqeDlLTXB4U1VaajNPeUpRNXpya29sVjhCS2FCbjR4cUNTRExzOThsNFVVRVc1am9hZlNaNgo2akZtdWVKRUdUcURsT01vRG9pYm9vVnFQUStyTVkvaVF0RyttbnZpeGRWUnFNcHNGSkVIT3dxVVVIYWNweGdlClJOM0UvNm4zLzErejhsMmw0Y2JPYnRLR0k2OFp6VnMwMVJOZkphRWxGME5vSWVGa1pBbGdHME91MWNCTlBLa1kKNWNoQXppbGVNWGJWVzdLT1pkOGtTMTZ0dm8rMjRSWHhVVUdUYk10Y2RManUvcHcrcmFpbHFqOU5NWFpSWjVCaQp3c1dUSldrck9ZUmtUTjhQNlFJREFRQUJvMEl3UURBT0JnTlZIUThCQWY4RUJBTUNBUVl3RHdZRFZSMFRBUUgvCkJBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVXo5dzdGUnB4d3M1WUluNTlHa0NYU0JCQWlBSXdEUVlKS29aSWh2Y04KQVFFTEJRQURnZ0VCQUJNWnFWQVFHcFFGRDY4dWc4UkYzVmtteThuWXpzcUNUNGdnbm4wRjFNb21GVzU5SUx1SwpYenc2K2pjeVk0TmFHSEd1U3N0QmdxM2t3NER3dk5SZTYzeUU1YU1aUlhDS2tLSmlOcWtIejZWV1FjWXpFckpHCmFvM1dYSGxWbDZmVGhWUzFBU3NJMlgxanFsOXkyZGEwTXliaUs0eDd0MG1EWXRXclFQdzhFZHBOYk5SaWx5alkKdXU5RjdmdGhmaWZRY3hJYTYrdWxyNWExUFJoSWd2VWszcDlNaFNRTVh6QWppRDZyM3g2TzlTRVRSUUx6T0orQwo2Z0hBc0VaMlBMSGRmb2dNanZFLzFUaEw4TzByMDZIMzQ3WTZ5NG9PeXVnK2dYOVlUVjcyQlI5NnFza1lCc0ZoClk1NUJQRHFXRzk4aXhZOXRDM0QzQXBPbEMvSmJzaGVjTnVBPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  certfile: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQzakNDQXNhZ0F3SUJBZ0lVZERuSW8zWElTWStJZnhYdmk4enVKa1c1ZkU4d0RRWUpLb1pJaHZjTkFRRUwKQlFBd1V6RUxNQWtHQTFVRUJoTUNTMUl4RGpBTUJnTlZCQWdUQlVKMWMyRnVNUlF3RWdZRFZRUUhFd3RJWVdWMQpibVJoWlMxbmRURU9NQXdHQTFVRUNoTUZUWFZ6YldFeERqQU1CZ05WQkFNVEJVMTFjMjFoTUI0WERUSXhNRGN3Ck5qQTVNREF3TUZvWERUSXlNRGN3TmpBNU1EQXdNRm93SFRFYk1Ca0dBMVVFQXhNU2JXOXpjWFZwZEhSdkxXTjEKYzNSdmJXVnlNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQW83WUxiMnAwRXlDSApCTGZidHNxTTZ5VFJNT2R2aGx0WE03QUJ1WlJGc2JWVEt5aEJlYU52clFsWWZUMU4xTXY3THFicmpIcCsrUmxQCjBBTzg5QXU4blFYNU12VnArOG5sU2piRVFRdElYMm10SFRyMnhEMytLS1FoQWVlNWtDQWZwaTdXU2trWExnVG4Ka2haM29TSHFRQ25sbDFIUkRmQ1BZYnh6Y1NxU1gyU1hTQmNoSU1jMnU4cjM1cVJDZHhpc0JibHJJZDc1S3VKNwpqMEU4cVN0cXFjUTNvb1lMamt0dkxTNlMycFRPUWkxV1AyUi9PTmU5UG80YS9Yc3pWQXZORGpJMllzTEUzR1ZWCkNqTXJwUTBIMWFQeHJCcnFWeEZwUTYvVE9KT0Vjam1rOHYxS2diTVN5RG43SjJlYnpobTNVOUd1Wll1dXg1RUQKelVsMDV3VHQzUUlEQVFBQm80SGZNSUhjTUE0R0ExVWREd0VCL3dRRUF3SUZvREFUQmdOVkhTVUVEREFLQmdncgpCZ0VGQlFjREFUQU1CZ05WSFJNQkFmOEVBakFBTUIwR0ExVWREZ1FXQkJRV21NTDg2b21nZGg2UFJDa1dLU3VWClcwa0M0akFmQmdOVkhTTUVHREFXZ0JUUDNEc1ZHbkhDemxnaWZuMGFRSmRJRUVDSUFqQm5CZ05WSFJFRVlEQmUKZ2hKdGIzTnhkV2wwZEc4dFkzVnpkRzl0WlhLQ0xXMXZjM0YxYVhSMGJ5MWpkWE4wYjIxbGNpNWtjMjFsTFdaaApiaTV6ZG1NdVkyeDFjM1JsY2k1c2IyTmhiSUlUYVc5MGNHRndNRFl1WkhOdFpTNWpieTVyY29jRXdLaEFDREFOCkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQVJtTmM3TmthT1ZzSjVFS1hxOCtnd0xTS0ROM1ZPQjVJc09hZ3dJbWoKS1NxRmIwVERxZWlQY2p6WnI5a01kcmhkejJla0R3ZGlKNThGQjRXa09meS85ZW9jdU9ldlpoSWMxc1kzTTF1aQpOMjd2YVV1QXZ6enZ0cGZKVCtoNnFJalJkeUJFaG9zejBZaFRncUsza1JrRjlMbEoxYXV2bm05LzlyNURxVld0CkkxZGU5dGlWclZsYU1HQW5wQ0libDZqeENiTWQ0QUNiOXJxWFFqQjg0QXVyMjRxckl3bTVIOVlJY1M4WHRleXAKTXQvUXU2WS9PbUw1VDMrRlFJVWhPei9XUFFWT1FkamlVK3J4M0hCMThST1ZZM1dITVorVVRnL0N4cWd1MWxxaAp1aUsyQ2pzK3BIYmp5dDJ3Zno1b2lyVlNKYXJ0aE5sUTg4anBPUmlmVTVRM2pRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  keyfile: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBbzdZTGIycDBFeUNIQkxmYnRzcU02eVRSTU9kdmhsdFhNN0FCdVpSRnNiVlRLeWhCCmVhTnZyUWxZZlQxTjFNdjdMcWJyakhwKytSbFAwQU84OUF1OG5RWDVNdlZwKzhubFNqYkVRUXRJWDJtdEhUcjIKeEQzK0tLUWhBZWU1a0NBZnBpN1dTa2tYTGdUbmtoWjNvU0hxUUNubGwxSFJEZkNQWWJ4emNTcVNYMlNYU0JjaApJTWMydThyMzVxUkNkeGlzQmJscklkNzVLdUo3ajBFOHFTdHFxY1Ezb29ZTGprdHZMUzZTMnBUT1FpMVdQMlIvCk9OZTlQbzRhL1hzelZBdk5EakkyWXNMRTNHVlZDak1ycFEwSDFhUHhyQnJxVnhGcFE2L1RPSk9FY2ptazh2MUsKZ2JNU3lEbjdKMmViemhtM1U5R3VaWXV1eDVFRHpVbDA1d1R0M1FJREFRQUJBb0lCQURhRmNEV0EzSHRxUDgwZwpkam5nSnlKQXRySjB3VDJidWVUcTN3Z3hDeXp0Mkc3dER6RTFid0hQdFBxd3FmVU9vZTZkaEtEYVF1TXV2TmZvCkJzdTRCTzYraUltaUZkUFhIMWVoK2FZMzNiaDQ5MEJlM01QcWFYU2JoS3FmdzdydUY5dytpUHRnY0NuUlZGWGcKeWFLT0t2ZUhmSUR5ckk3WjZNYUIvbWhYNXp1Qk9rcUwxTGZqY1haemVMZmNuS1RnSWdlOEI4eUY4V2JWMC9EWgp6dnIvQVZGRzk1ZlpobkU5ZkRiSDJ0ZEdJSnA4anY0RDUyektybEl4TytlZURiQ3d4aXVxVllJVi8yQ0pJWjFuCmhCUEN1dGxvTXE1YllBUnlLSXFkdFMyQyswRGs5Z0xYb0Q4ZHNWaUZrVVFmMTl0WjR6dDJVWVIzVjk2bHloOTYKcEsyaHF3RUNnWUVBeW1HWERaOE04bkdqSGNkYXNQNWx6QmVHQWg0ak13ZS84Mk9kWHlDMjZoQzJZTTV0K01SMApqVDRNQ3oyY3FuakFKVXRhV2RFaWNOQnk2SkhSNmlXODlxS1EwVFB1b01MTjc3SUVycUtXdnhqbGFVOTFqbnVwCitsalB5NmtFNFhTSGxZVHc4LzI4K3ZBU2ZWQm01a0R1Zmc2UmIwYVpQa3VxZHNhYkFSN2ZxNzBDZ1lFQXp4V3MKWmNFMEtkcDd2NTlJazdxL2doTlZwQ3Q1alZ2dnRsUVB4bnpSNk5IUjJLQU03V01SME94N3VQVERJQ1RDWmRKTAp6L1pEUjBKUW5Ec1VaNGJ6aHlaYUw0ZHBzWmdNaFczWUFQaUhuTlZpK1ZxVXVQY0pLcGtTdjZ1Y2c5Y0Nwdmo0CjV0aHZhZkljb2dRZm1wdDdPNlc5ZEl5eXVRcGQyYjVCdnE1S1hLRUNnWUI4VmtpL2phQWVzOEpMWVZkT3RuMUUKVG85K2JaV2luSGhKeUVHL1dCSUk3QXVnbmpMaVM1QnYxbGIvOFBKM3FZZ2pZWkE0N2t3Q2s0NkZaRkZiVWFRdQp3dUhHSmVuTnl1RkxDa3ZtSHU0T3FmVUlKbEZMSUo3bHQvcXlYVDBxWnJXR0h3OEtXREhxMmVRQ0tZdU9td1hyClhIZnRyYW9vbzhRdkJRWG1RbG1ZNFFLQmdDalRKUUdLYlRZekZHSmFqSHhUUEozd0lkb1RtQXIrTE92TTlxOHkKdkU4aHpqVGVtSzNUOGhjMkI4NFdzc0VMZmllRXBkMkJ0eEc5U1JjRHJxb2FPTGhVSDBOdmRxN0VRdk9yREFKawovSmMybWlSK2J3Tm44QzZ0cnJ5S29IaDlVdENJRk1tdHNZazVhZHVtNUhRZVl0VUhmNm9TY3NsMytiaUxnWHFOCjhhc0JBb0dBVlhnQlZyenFPWlRhd3VFOXNmY1ZQT3FVTHlkODdTMFpDclJzanYweWZnSXFLekxMN2dYU3F3bHgKMnp6eUlrUG5kcFlRL05DUGRhbjEyQ1F5WWRmdTRReU53a1VYYVFjVThZQ2VtK3h5UmFwU2pTS1ZDdjhkaDZIVAo1a3c0enFveUx1NFFkendwUnA0UGoyckdWRjNvdVVKRUR5ZFIvRXY4aDZPWkdITzJiTlU9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+  password_file: dGhpbmd3b3J4OiQ3JDEwMSRBN1ZkNXJVejN5OU83Z3dnJHhyVnhyNjBLSXFiaE5SeHhpSXlDNEcyUFI2YXBBSFFuaE1MMTloZlh2SlRFWjA3NzZvNXFoK25DdnRlbjdLNjUxdTNzbFZndEM4d3hqV0E2bXlyZ1NnPT0KbWVzc2FnZS10cmFuc2Zvcm1lcjokNyQxMDEkS3VkWWR2SWN1dzlkQk5qbiRVR1B0WTdYaXJDUmU3c3Z1ZDJwRWEybEp3YXViVCtENnZScHlnYXRZcHllcnArazN1Qm1JR2hnUlBJSTV3cFlpUUVDeGw3QjNnZXpFL05FV05Xem4xZz09Cm11c21hLXRlc3Q6JDckMTAxJEtFaGVFbVl3MGFObGdMWDIkR0FMdXpFajJva29EUFM5Q3g2QlhiNk5EM09LVHcxL1M1QUxFZ0lrYnkremN1ZDRBOGxUYmJTRGNmVEo3eTZtVTNSS1duM3BHQWNWeXVCdUc5MFpjWWc9PQpkc21lLWlvdDokNyQxMDEkdVlYSnR0MnJTcVZINnBKVCR3cDlEOUZsc0Z2VjVvd1VSdXdJV3VHbXF1MjY2T2p2SzA1ZnpWQ2hhT0dlU1ZMbDR0dndJeEJoSnJhaWROYjJ6SFBiMmRiNXNDWGNDajNIZUhQZlpLdz09Cg==

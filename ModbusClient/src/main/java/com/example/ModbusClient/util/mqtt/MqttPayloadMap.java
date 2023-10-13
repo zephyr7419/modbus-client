@@ -1,6 +1,5 @@
 package com.example.ModbusClient.util.mqtt;
 
-import com.example.ModbusClient.dto.Data;
 import com.example.ModbusClient.dto.DataModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

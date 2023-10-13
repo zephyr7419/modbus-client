@@ -56,11 +56,11 @@ public class MqttConfig {
         options.setKeepAliveInterval(60);
         options.setCleanStart(false);
         options.setAutomaticReconnect(true);
-//        options.setSocketFactory(getSocketFactory(caFilePath, clientCrtFilePath, clientKeyFilePath, ""));
+        options.setSocketFactory(getSocketFactory(caFilePath, clientCrtFilePath, clientKeyFilePath, ""));
 
 
         MqttClient client = new MqttClient(serverUrl, clientId);
-        String topic = "application/" + applicationId + "/device/+/event/up";
+        String topic = "gasfan/+/event/control";
 
         client.connect(options);
         client.subscribe(topic, 0);

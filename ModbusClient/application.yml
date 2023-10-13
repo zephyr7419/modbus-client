@@ -17,20 +17,12 @@ modbus:
       quantity: 0x0004
 
 mqtt:
-  server-url: tcp://mqtt-broker:1883
-  ca-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/ca.pem
-  client-crt-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/client/client.pem
-  client-key-file: /Users/zephyr/Desktop/test_workspace/gas/ssl/client/client-key.pem
+  server-url: ssl://localhost:8883
+  ca-file: ./mosquitto/config/ssl/ca.pem
+  client-crt-file: ./mosquitto/config/ssl/client/zephyr.pem
+  client-key-file: ./mosquitto/config/ssl/client/zephyr-key.pem
   client-id: zephyr
   application-id: 4
-
-#mqtt:
-#  server-url: ssl://mqtt-broker:1883
-#  ca-file: /mosquitto/config/ssl/ca.pem
-#  client-crt-file: /mosquitto/config/ssl/client.pem
-#  client-key-file: /mosquitto/config/ssl/client-key.pem
-#  client-id: zephyr
-#  application-id: 4
 
 servers:
   server-list:
@@ -43,7 +35,7 @@ spring:
     url: http://localhost:8086
     user: zephyr
     password: zephyr7419
-    org: Musma
+    org: musma
     bucket: modbus
     measurement: status
     token: 0FQPbYlJ1rqHKpOyFxEWFn1bJ2VwigmTxJFry25I-zkeCaNIKF0J-xMunZBrHBLTx0H3mlzk09ov93qtOTpCBA==
